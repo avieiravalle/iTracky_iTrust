@@ -3,9 +3,11 @@ import {
   ArrowDownCircle, 
   ArrowUpCircle, 
   Plus,
-  Package,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product, User, Stats, ProductStat, MonthlyStat, Receivable } from './types';
 import { Auth } from './components/Auth';
 import { Sidebar } from './components/Sidebar';
@@ -16,9 +18,14 @@ import { Financeiro } from './components/Financeiro';
 import { Manual } from './components/Manual';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Modals } from './components/Modals';
+import { PixPaymentModal } from './components/PixPaymentModal';
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('userData');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
   const [screen, setScreen] = useState<'login' | 'register' | 'app' | 'admin'>('login');
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
@@ -29,13 +36,22 @@ export default function App() {
   const [productStats, setProductStats] = useState<ProductStat[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
   const [receivables, setReceivables] = useState<Receivable[]>([]);
-  const [monthlyPeriod, setMonthlyPeriod] = useState(6);
-  const [loading, setLoading] = useState(false);
+  const [evolutionPeriod, setEvolutionPeriod] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    document.body.style.fontFamily = "'Inter', sans-serif";
+  }, []);
 
   useEffect(() => {
     if (darkMode) {
@@ -47,16 +63,39 @@ export default function App() {
     }
   }, [darkMode]);
 
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Função auxiliar para fetch com autenticação
+  const authFetch = async (url: string, options: RequestInit = {}) => {
+    const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401 || res.status === 403) handleLogout();
+    return res;
+  };
+
   const fetchData = async () => {
-    if (!user) return;
-    setLoading(true);
+    if (!user || !token) return;
     try {
+      // Define o range baseado no período selecionado
+      const rangeMap = {
+        day: 30,      // Últimos 30 dias
+        week: 12,     // Últimas 12 semanas
+        month: 12,    // Últimos 12 meses
+        quarter: 8    // Últimos 8 trimestres
+      };
+
       const [productsRes, statsRes, productStatsRes, monthlyStatsRes, receivablesRes] = await Promise.allSettled([
-        fetch(`/api/products?userId=${user.id}`),
-        fetch(`/api/stats?userId=${user.id}`),
-        fetch(`/api/product-stats?userId=${user.id}`),
-        fetch(`/api/monthly-stats?userId=${user.id}&months=${monthlyPeriod}`),
-        fetch(`/api/receivables?userId=${user.id}`)
+        authFetch(`/api/products`), // Não precisa mais enviar userId na URL
+        authFetch(`/api/stats`),
+        authFetch(`/api/product-stats`),
+        authFetch(`/api/profit-evolution?period=${evolutionPeriod}&range=${rangeMap[evolutionPeriod]}`),
+        authFetch(`/api/receivables`)
       ]);
 
       if (productsRes.status === 'fulfilled' && productsRes.value.ok) {
@@ -85,8 +124,6 @@ export default function App() {
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -94,7 +131,7 @@ export default function App() {
     if (user) {
       fetchData();
     }
-  }, [user, monthlyPeriod]);
+  }, [user, evolutionPeriod, token]);
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -109,8 +146,13 @@ export default function App() {
 
     if (res.ok) {
       setRegisteredEmail(payload.email as string);
-      setScreen('login');
-      setLoginError('');
+      
+      if (payload.role === 'gestor') {
+        setShowPaymentModal(true);
+      } else {
+        setScreen('login');
+        setLoginError('');
+      }
     } else {
       const err = await res.json();
       alert(err.error || "Erro no cadastro");
@@ -130,8 +172,11 @@ export default function App() {
     });
 
     if (res.ok) {
-      const userData = await res.json();
-      setUser(userData);
+      const data = await res.json();
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userData', JSON.stringify(data.user));
       setScreen('app');
       setLoginError('');
     } else {
@@ -140,26 +185,30 @@ export default function App() {
     }
   };
 
-  const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!user) return;
-    const formData = new FormData(e.currentTarget);
-    const payload = {
-      user_id: user.id,
-      name: formData.get('name'),
-      sku: formData.get('sku'),
-      min_stock: Number(formData.get('min_stock')),
-    };
+  const handleAddProduct = async (productData: { name: string, sku: string, min_stock: number }) => {
+    if (!token) {
+      setToast({ message: 'Sessão expirada. Faça login novamente.', type: 'error' });
+      return;
+    }
+    
+    try {
+      const res = await authFetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData),
+      });
 
-    const res = await fetch('/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (res.ok) {
-      setShowAddProduct(false);
-      fetchData();
+      if (res.ok) {
+        setShowAddProduct(false);
+        fetchData();
+        setToast({ message: 'Produto cadastrado com sucesso!', type: 'success' });
+      } else {
+        const err = await res.json();
+        setToast({ message: err.error || 'Erro ao cadastrar produto', type: 'error' });
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ message: 'Erro de conexão ao salvar produto', type: 'error' });
     }
   };
 
@@ -176,7 +225,7 @@ export default function App() {
       expiry_date: formData.get('expiry_date'),
     };
 
-    const res = await fetch('/api/transactions', {
+    const res = await authFetch('/api/transactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -192,7 +241,7 @@ export default function App() {
   };
 
   const handleMarkAsPaid = async (id: number, amount?: number) => {
-    const res = await fetch(`/api/transactions/${id}/pay`, { 
+    const res = await authFetch(`/api/transactions/${id}/pay`, { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount })
@@ -204,8 +253,37 @@ export default function App() {
 
   const handleLogout = () => {
     setUser(null);
+    setToken(null);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
     setScreen('login');
   };
+
+  // Restaurar sessão ao carregar a página (Persistência de Login)
+  useEffect(() => {
+    const restoreSession = async () => {
+      if (token && !user) {
+        try {
+          const res = await fetch('/api/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (res.ok) {
+            const userData = await res.json();
+            setUser(userData);
+            localStorage.setItem('userData', JSON.stringify(userData));
+            // Se estiver na tela de login mas com token válido, vai para o app
+            if (screen === 'login') setScreen('app');
+          } else {
+            handleLogout(); // Token inválido ou expirado
+          }
+        } catch (error) {
+          handleLogout();
+        }
+      }
+    };
+    restoreSession();
+  }, [token]); // Executa sempre que o token mudar (inicialização ou login)
 
   if (screen === 'admin') {
     return (
@@ -213,6 +291,7 @@ export default function App() {
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <button 
+              type="button"
               onClick={() => setScreen('login')}
               className="px-4 py-2 bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 text-sm font-bold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors dark:text-white"
             >
@@ -246,8 +325,18 @@ export default function App() {
     );
   }
 
+  if (showPaymentModal) {
+    return (
+      <PixPaymentModal 
+        isOpen={showPaymentModal} 
+        onClose={() => { setShowPaymentModal(false); setScreen('login'); }} 
+        email={registeredEmail} 
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-zinc-950 text-[#1A1A1A] dark:text-white font-sans pb-20 md:pb-0 transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-[#1A1A1A] dark:text-white pb-20 md:pb-0 transition-colors">
       <Sidebar 
         user={user} 
         activeTab={activeTab} 
@@ -274,21 +363,27 @@ export default function App() {
           </div>
           <div className="hidden md:flex gap-3">
             <button 
+              type="button"
               onClick={() => setShowTransaction({ type: 'ENTRY' })}
+              data-testid="btn-entry"
               className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-100 font-medium hover:bg-emerald-100 transition-colors"
             >
               <ArrowDownCircle size={18} />
               Entrada
             </button>
             <button 
+              type="button"
               onClick={() => setShowTransaction({ type: 'EXIT' })}
+              data-testid="btn-exit"
               className="flex items-center gap-2 bg-rose-50 text-rose-700 px-4 py-2 rounded-xl border border-rose-100 font-medium hover:bg-rose-100 transition-colors"
             >
               <ArrowUpCircle size={18} />
               Saída
             </button>
             <button 
+              type="button"
               onClick={() => setShowAddProduct(true)}
+              data-testid="btn-new-product"
               className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-xl font-medium hover:bg-gray-800 transition-colors"
             >
               <Plus size={18} />
@@ -297,30 +392,40 @@ export default function App() {
           </div>
         </header>
 
-        {activeTab === 'dashboard' && (
-          <Dashboard 
-            products={products} 
-            stats={stats} 
-            monthlyStats={monthlyStats}
-            monthlyPeriod={monthlyPeriod}
-            setMonthlyPeriod={setMonthlyPeriod}
-            darkMode={darkMode}
-            onViewFinanceiro={() => setActiveTab('financeiro')}
-            user={user}
-          />
-        )}
-        {activeTab === 'inventory' && <Inventory products={products} user={user} />}
-        {activeTab === 'informativo' && <Informativo productStats={productStats} />}
-        {activeTab === 'financeiro' && (
-          <Financeiro 
-            receivables={receivables} 
-            stats={stats} 
-            onMarkAsPaid={handleMarkAsPaid} 
-            onNewSale={() => setShowTransaction({ type: 'EXIT' })}
-          />
-        )}
-        {activeTab === 'manual' && <Manual />}
-        {activeTab === 'admin' && <AdminDashboard />}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === 'dashboard' && (
+              <Dashboard 
+                products={products} 
+                stats={stats} 
+                monthlyStats={monthlyStats}
+                evolutionPeriod={evolutionPeriod}
+                setEvolutionPeriod={setEvolutionPeriod}
+                darkMode={darkMode}
+                onViewFinanceiro={() => setActiveTab('financeiro')}
+                user={user}
+              />
+            )}
+            {activeTab === 'inventory' && <Inventory products={products} user={user} />}
+            {activeTab === 'informativo' && <Informativo productStats={productStats} />}
+            {activeTab === 'financeiro' && (
+              <Financeiro 
+                receivables={receivables} 
+                stats={stats} 
+                onMarkAsPaid={handleMarkAsPaid} 
+                onNewSale={() => setShowTransaction({ type: 'EXIT' })}
+              />
+            )}
+            {activeTab === 'manual' && <Manual />}
+            {activeTab === 'admin' && <AdminDashboard />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <Modals 
@@ -332,6 +437,22 @@ export default function App() {
         onAddProduct={handleAddProduct}
         onTransaction={handleTransaction}
       />
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 20, x: '-50%' }}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-xl flex items-center gap-3 z-[60] ${
+              toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+            }`}
+          >
+            {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+            <span className="font-bold text-sm">{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

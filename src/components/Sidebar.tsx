@@ -33,13 +33,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-6 flex flex-col h-full">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-                <Package className="text-white dark:text-black w-5 h-5" />
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Package className="text-white w-5 h-5" />
               </div>
               <h1 className="font-bold text-lg tracking-tight dark:text-white">{user?.establishment_name || 'StockFlow'}</h1>
             </div>
             <button 
+              type="button"
               onClick={() => setDarkMode(!darkMode)}
+              aria-label="Alternar tema"
               className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-gray-400"
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
@@ -48,15 +50,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <nav className="space-y-1 flex-1">
             <button 
+              type="button"
               onClick={() => setActiveTab('dashboard')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/10' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
             >
               <LayoutDashboard size={20} />
               <span className="font-medium">Dashboard</span>
             </button>
             <button 
+              type="button"
               onClick={() => setActiveTab('inventory')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/10' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
             >
               <Package size={20} />
               <span className="font-medium">Inventário</span>
@@ -64,15 +68,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {user?.role !== 'colaborador' && (
               <>
                 <button 
+                  type="button"
                   onClick={() => setActiveTab('informativo')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'informativo' ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/10' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'informativo' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
                 >
                   <TrendingUp size={20} />
                   <span className="font-medium">Informativo</span>
                 </button>
                 <button 
+                  type="button"
                   onClick={() => setActiveTab('financeiro')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'financeiro' ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/10' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'financeiro' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
                 >
                   <DollarSign size={20} />
                   <span className="font-medium">Financeiro</span>
@@ -80,16 +86,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </>
             )}
             <button 
+              type="button"
               onClick={() => setActiveTab('manual')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/10' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
             >
               <BookOpen size={20} />
               <span className="font-medium">Ajuda/Manual</span>
             </button>
             {user?.role === 'admin' && (
               <button 
+                type="button"
                 onClick={() => setActiveTab('admin')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'admin' ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/10' : 'text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'admin' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10'}`}
               >
                 <ShieldCheck size={20} />
                 <span className="font-medium">Admin</span>
@@ -98,6 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           <button 
+            type="button"
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all mt-auto"
           >
@@ -127,6 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-center justify-between mb-8">
                 <h3 className="font-bold text-lg dark:text-white">Ações Rápidas</h3>
                 <button 
+                  type="button"
                   onClick={() => setShowMobileMenu(false)}
                   className="p-2 bg-gray-100 dark:bg-zinc-800 rounded-full text-gray-500"
                 >
@@ -135,6 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <button 
+                  type="button"
                   onClick={() => { onShowTransaction('ENTRY'); setShowMobileMenu(false); }}
                   className="flex flex-col items-center gap-3 p-6 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 rounded-3xl transition-all active:scale-95 border border-emerald-100 dark:border-emerald-500/20"
                 >
@@ -147,6 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </button>
                 <button 
+                  type="button"
                   onClick={() => { onShowTransaction('EXIT'); setShowMobileMenu(false); }}
                   className="flex flex-col items-center gap-3 p-6 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-3xl transition-all active:scale-95 border border-rose-100 dark:border-rose-500/20"
                 >
@@ -159,6 +171,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </button>
                 <button 
+                  type="button"
                   onClick={() => { onShowAddProduct(); setShowMobileMenu(false); }}
                   className="col-span-2 flex items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 rounded-3xl transition-all active:scale-95 border border-gray-200 dark:border-zinc-700"
                 >
@@ -182,6 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Bottom Navigation - Mobile Only */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border-t border-[#E5E7EB] dark:border-zinc-800 z-20 flex justify-around items-center px-2 py-3 md:hidden transition-colors safe-area-bottom">
         <button 
+          type="button"
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'dashboard' ? 'text-black dark:text-white' : 'text-gray-400'}`}
         >
@@ -190,6 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
         
         <button 
+          type="button"
           onClick={() => setActiveTab('inventory')}
           className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'inventory' ? 'text-black dark:text-white' : 'text-gray-400'}`}
         >
@@ -199,6 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="relative -mt-10 flex-1 flex justify-center">
           <button 
+            type="button"
             onClick={() => setShowMobileMenu(!showMobileMenu)}
             className={`w-14 h-14 rounded-full flex items-center justify-center shadow-xl border-4 border-[#F8F9FA] dark:border-zinc-950 active:scale-90 transition-all ${showMobileMenu ? 'bg-rose-500 text-white rotate-45' : 'bg-black dark:bg-white text-white dark:text-black'}`}
           >
@@ -208,6 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {user?.role !== 'colaborador' && (
           <button 
+            type="button"
             onClick={() => setActiveTab('financeiro')}
             className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'financeiro' ? 'text-black dark:text-white' : 'text-gray-400'}`}
           >
@@ -217,6 +234,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         <button 
+          type="button"
           onClick={() => setActiveTab('manual')}
           className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'manual' ? 'text-black dark:text-white' : 'text-gray-400'}`}
         >
@@ -225,6 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
         {user?.role === 'admin' && (
           <button 
+            type="button"
             onClick={() => setActiveTab('admin')}
             className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'admin' ? 'text-blue-600' : 'text-gray-400'}`}
           >

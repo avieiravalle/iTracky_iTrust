@@ -83,6 +83,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
           </div>
           
           <button 
+            type="button"
             onClick={onNewSale}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-lg shadow-black/5"
           >
@@ -165,12 +166,14 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
                     ) : (
                       <div className="flex items-center gap-2 justify-end">
                         <button 
+                          type="button"
                           onClick={() => setPartialPayment({ id: r.id, amount: '' })}
                           className="text-[10px] font-bold uppercase text-blue-600 hover:underline"
                         >
                           Parcial
                         </button>
                         <button 
+                          type="button"
                           onClick={() => onMarkAsPaid(r.id)}
                           className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
                         >
@@ -259,12 +262,14 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
                 ) : (
                   <>
                     <button 
+                      type="button"
                       onClick={() => setPartialPayment({ id: r.id, amount: '' })}
                       className="flex-1 py-2.5 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold uppercase tracking-wider"
                     >
                       Pag. Parcial
                     </button>
                     <button 
+                      type="button"
                       onClick={() => onMarkAsPaid(r.id)}
                       className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20"
                     >

@@ -9,33 +9,42 @@ import {
   Key, 
   TrendingUp, 
   DollarSign,
-  Calendar,
   Trash2,
   CreditCard,
   Clock,
   Eye,
-  EyeOff
+  EyeOff,
+  FileText
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Client, AppSale } from '../types';
 import { formatBRL } from '../utils/format';
+
+interface AuditLog {
+  id: number;
+  user_name: string;
+  action: string;
+  details: string;
+  timestamp: string;
+}
 
 export const AdminDashboard: React.FC = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' });
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending'>('all');
   
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<AppSale[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   
   const fetchData = async () => {
-    setLoading(true);
     try {
-      const [clientsRes, salesRes] = await Promise.all([
+      const [clientsRes, salesRes, logsRes] = await Promise.all([
         fetch('/api/admin/users'),
-        fetch('/api/admin/sales')
+        fetch('/api/admin/sales'),
+        fetch('/api/admin/logs')
       ]);
 
       if (clientsRes.ok) {
@@ -47,10 +56,13 @@ export const AdminDashboard: React.FC = () => {
         const data = await salesRes.json();
         setSales(data);
       }
+
+      if (logsRes.ok) {
+        const data = await logsRes.json();
+        setLogs(data);
+      }
     } catch (error) {
       console.error("Error fetching admin data:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -83,7 +95,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const registerPayment = async (id: number) => {
-    const amountStr = window.prompt('Digite o valor do pagamento (deixe em branco para valor total do plano):');
+    const amountStr = window.prompt('Digite o valor do pagamento (Padrão: 100.00):', '100.00');
     const amount = amountStr ? parseFloat(amountStr.replace(',', '.')) : undefined;
 
     try {
@@ -124,6 +136,7 @@ export const AdminDashboard: React.FC = () => {
           }
           return c;
         }));
+        fetchData(); // Recarrega logs para ver a ação de bloqueio se implementarmos log no backend para essa rota
       }
     } catch (error) {
       alert("Erro ao alterar status");
@@ -215,9 +228,10 @@ export const AdminDashboard: React.FC = () => {
 
   // Filtered data based on search
   const filteredClients = clients.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     c.establishment_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase())
+    c.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (filterStatus === 'all' || (filterStatus === 'pending' && c.status === 'pending'))
   );
 
   const filteredSales = sales.filter(s => 
@@ -265,18 +279,43 @@ export const AdminDashboard: React.FC = () => {
       {/* Gestão de Clientes */}
       <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
         <div className="p-6 border-b border-gray-50 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className="text-blue-500" size={24} />
               <h3 className="font-bold text-xl dark:text-white">Gerenciamento de Acessos</h3>
             </div>
             <button 
+              type="button"
               onClick={resetDatabase}
               className="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg uppercase hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors flex items-center gap-1"
             >
               <Trash2 size={12} />
               Limpar Base
             </button>
+            </div>
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-zinc-800/50 p-1 rounded-xl w-fit">
+              <button 
+                type="button"
+                onClick={() => setFilterStatus('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === 'all' ? 'bg-white dark:bg-zinc-700 shadow-sm text-gray-800 dark:text-white' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                Todos
+              </button>
+              <button 
+                type="button"
+                onClick={() => setFilterStatus('pending')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${filterStatus === 'pending' ? 'bg-white dark:bg-zinc-700 shadow-sm text-amber-600' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                Pendentes
+                {clients.filter(c => c.status === 'pending').length > 0 && (
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -346,23 +385,26 @@ export const AdminDashboard: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right space-x-1">
                       <button 
+                        type="button"
                         onClick={() => registerPayment(client.id)}
-                        className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors" 
-                        title="Registrar Pagamento Hoje"
+                        className={`p-2 rounded-lg transition-colors ${client.status === 'pending' ? 'text-emerald-600 bg-emerald-100 hover:bg-emerald-200 animate-pulse' : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'}`}
+                        title={client.status === 'pending' ? "Confirmar Pagamento e Aprovar" : "Registrar Pagamento"}
                       >
                         <CreditCard size={18} />
                       </button>
-                      <button className="p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Resetar Senha">
+                      <button type="button" className="p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Resetar Senha">
                         <Key size={18} />
                       </button>
                       <button 
+                        type="button"
                         onClick={() => toggleStatus(client.id)}
                         className={`p-2 transition-colors ${client.status === 'active' ? 'text-amber-400 hover:text-amber-600' : 'text-emerald-400 hover:text-emerald-600'}`}
-                        title={client.status === 'active' ? 'Suspender Acesso' : 'Ativar Acesso'}
+                        title={client.status === 'active' ? 'BLOQUEAR ACESSO (Desconecta Imediatamente)' : 'Liberar Acesso'}
                       >
                         {client.status === 'active' ? <Ban size={18} /> : <CheckCircle2 size={18} />}
                       </button>
                       <button 
+                        type="button"
                         onClick={() => deleteClient(client.id)}
                         className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
                         title="Deletar Cliente"
@@ -399,6 +441,40 @@ export const AdminDashboard: React.FC = () => {
               <p className="font-bold text-emerald-600">{formatBRL(sale.amount)}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Logs de Auditoria */}
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
+        <div className="p-6 border-b border-gray-50 dark:border-zinc-800 flex items-center gap-2">
+          <FileText className="text-gray-500" size={24} />
+          <h3 className="font-bold text-xl dark:text-white">Logs de Auditoria</h3>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 bg-white dark:bg-zinc-900 z-10">
+              <tr className="bg-gray-50/50 dark:bg-zinc-800/50 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-bold">
+                <th className="px-6 py-3">Data/Hora</th>
+                <th className="px-6 py-3">Usuário</th>
+                <th className="px-6 py-3">Ação</th>
+                <th className="px-6 py-3">Detalhes</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
+              {logs.map(log => (
+                <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors text-sm">
+                  <td className="px-6 py-3 text-gray-500 font-mono text-xs">
+                    {new Date(log.timestamp).toLocaleString('pt-BR')}
+                  </td>
+                  <td className="px-6 py-3 font-bold dark:text-white">{log.user_name || 'Sistema'}</td>
+                  <td className="px-6 py-3">
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-zinc-800 rounded text-xs font-bold uppercase">{log.action}</span>
+                  </td>
+                  <td className="px-6 py-3 text-gray-600 dark:text-gray-400">{log.details}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

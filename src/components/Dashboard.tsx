@@ -16,8 +16,8 @@ interface DashboardProps {
   products: Product[];
   stats: Stats;
   monthlyStats: MonthlyStat[];
-  monthlyPeriod: number;
-  setMonthlyPeriod: (period: number) => void;
+  evolutionPeriod: 'day' | 'week' | 'month' | 'quarter';
+  setEvolutionPeriod: (period: 'day' | 'week' | 'month' | 'quarter') => void;
   darkMode: boolean;
   onViewFinanceiro: () => void;
   user: User | null;
@@ -27,8 +27,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   products, 
   stats, 
   monthlyStats, 
-  monthlyPeriod, 
-  setMonthlyPeriod,
+  evolutionPeriod, 
+  setEvolutionPeriod,
   darkMode,
   onViewFinanceiro,
   user
@@ -37,13 +37,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const lowStockProducts = products.filter(p => p.current_stock <= p.min_stock);
   const totalValue = products.reduce((acc, p) => acc + (p.current_stock * p.average_cost), 0);
 
-  // Format month labels (e.g., "2024-01" -> "Jan")
+  // Format labels based on period
   const formattedMonthlyData = monthlyStats.map(item => {
-    const [year, month] = item.month.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1);
+    let displayLabel = item.month;
+    
+    if (evolutionPeriod === 'month') {
+      const [year, month] = item.month.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1);
+      displayLabel = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+    } else if (evolutionPeriod === 'day') {
+      const [year, month, day] = item.month.split('-');
+      displayLabel = `${day}/${month}`;
+    } else if (evolutionPeriod === 'week') {
+      const [year, week] = item.month.split('-');
+      displayLabel = `Sem ${week.replace('W', '')}`;
+    } else if (evolutionPeriod === 'quarter') {
+      displayLabel = item.month.replace('-', ' ');
+    }
+
     return {
       ...item,
-      displayMonth: date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')
+      displayMonth: displayLabel
     };
   });
 
@@ -107,20 +121,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-2">
               <Calendar className="text-black dark:text-white" size={20} />
-              <h3 className="font-bold text-lg dark:text-white">Evolução do Lucro Mensal</h3>
+              <h3 className="font-bold text-lg dark:text-white">Evolução do Lucro</h3>
             </div>
             <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-xl">
               <button 
-                onClick={() => setMonthlyPeriod(3)}
-                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${monthlyPeriod === 3 ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                onClick={() => setEvolutionPeriod('day')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${evolutionPeriod === 'day' ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
               >
-                3 Meses
+                Dia
               </button>
               <button 
-                onClick={() => setMonthlyPeriod(6)}
-                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${monthlyPeriod === 6 ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                onClick={() => setEvolutionPeriod('week')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${evolutionPeriod === 'week' ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
               >
-                6 Meses
+                Sem
+              </button>
+              <button 
+                onClick={() => setEvolutionPeriod('month')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${evolutionPeriod === 'month' ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              >
+                Mês
+              </button>
+              <button 
+                onClick={() => setEvolutionPeriod('quarter')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${evolutionPeriod === 'quarter' ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              >
+                Trim
               </button>
             </div>
           </div>

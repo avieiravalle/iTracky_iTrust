@@ -1,6 +1,6 @@
 {
-  "name": "StockFlow",
-  "short_name": "StockFlow",
+  "name": "Controle de Estoque",
+  "short_name": "Controle de Estoque",
   "description": "Gestão de Estoque Inteligente",
   "start_url": "/",
   "display": "standalone",
