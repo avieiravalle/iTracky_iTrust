@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
-import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
@@ -399,24 +398,66 @@ export async function createApp() {
     }
   });
 
-  app.get("/api/monthly-stats", authenticateToken, (req: AuthRequest, res) => {
+  app.get("/api/profit-evolution", authenticateToken, (req: AuthRequest, res) => {
     try {
       const user = req.user;
-      const months = Number(req.query.months) || 6;
+      const period = (req.query.period as string) || 'month';
+      const range = Number(req.query.range) || 12;
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
       const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
 
-      const monthlyStats = db.prepare(`
+      let groupBy = "";
+      let selectLabel = "";
+      let dateFilter = "";
+      let queryParams: any[] = [ownerId];
+
+      switch (period) {
+        case 'custom':
+          groupBy = "strftime('%Y-%m-%d', t.timestamp)";
+          selectLabel = "strftime('%Y-%m-%d', t.timestamp)";
+          dateFilter = "t.timestamp >= ? AND t.timestamp <= ?";
+          queryParams.push(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
+          break;
+        case 'day':
+          groupBy = "strftime('%Y-%m-%d', t.timestamp)";
+          selectLabel = "strftime('%Y-%m-%d', t.timestamp)";
+          dateFilter = "date('now', '-' || ? || ' days')";
+          queryParams.push(range);
+          break;
+        case 'week':
+          groupBy = "strftime('%Y-%W', t.timestamp)";
+          selectLabel = "strftime('%Y-%W', t.timestamp)";
+          dateFilter = "date('now', '-' || ? || ' days')";
+          queryParams.push(range * 7);
+          break;
+        case 'quarter':
+          groupBy = "strftime('%Y', t.timestamp) || '-Q' || ((CAST(strftime('%m', t.timestamp) AS INTEGER) + 2) / 3)";
+          selectLabel = "strftime('%Y', t.timestamp) || '-Q' || ((CAST(strftime('%m', t.timestamp) AS INTEGER) + 2) / 3)";
+          dateFilter = "date('now', '-' || ? || ' months', 'start of month')";
+          queryParams.push(range * 3);
+          break;
+        case 'month':
+        default:
+          groupBy = "strftime('%Y-%m', t.timestamp)";
+          selectLabel = "strftime('%Y-%m', t.timestamp)";
+          dateFilter = "date('now', '-' || ? || ' months', 'start of month')";
+          queryParams.push(range);
+      }
+
+      const query = `
         SELECT 
-          strftime('%Y-%m', t.timestamp) as month,
+          ${selectLabel} as month,
           COALESCE(SUM(CASE WHEN t.type = 'EXIT' AND t.unit_cost > 0 THEN (t.amount_paid - (t.cost_at_transaction * (t.amount_paid / t.unit_cost))) ELSE 0 END), 0) as profit
         FROM transactions t
         JOIN products p ON t.product_id = p.id
-        WHERE p.user_id = ? AND t.type = 'EXIT' AND t.timestamp >= date('now', '-' || ? || ' months', 'start of month')
-        GROUP BY month
+        WHERE p.user_id = ? AND t.type = 'EXIT' AND ${dateFilter}
+        GROUP BY ${groupBy}
         ORDER BY month ASC
-      `).all(ownerId, months);
+      `;
 
-      res.json(monthlyStats);
+      const stats = db.prepare(query).all(...queryParams);
+      res.json(stats);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -513,8 +554,8 @@ export async function createApp() {
           const totalValue = unit_cost * quantity;
           const initialPaid = status === 'PAID' ? totalValue : 0;
 
-          db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, client_name, amount_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-            .run(product_id, type, quantity, unit_cost, product.average_cost, status || 'PAID', client_name || null, initialPaid);
+          db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, client_name, amount_paid, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .run(product_id, type, quantity, unit_cost, product.average_cost, status || 'PAID', client_name || null, initialPaid, expiry_date || null);
         }
       })();
       res.json({ success: true });
@@ -654,7 +695,8 @@ export async function createApp() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test") {
-    const vite = await createViteServer({
+    const { createServer } = await import("vite");
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: "spa",
     });

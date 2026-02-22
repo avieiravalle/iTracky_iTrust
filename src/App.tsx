@@ -36,7 +36,11 @@ export default function App() {
   const [productStats, setProductStats] = useState<ProductStat[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
   const [receivables, setReceivables] = useState<Receivable[]>([]);
-  const [evolutionPeriod, setEvolutionPeriod] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
+  const [evolutionPeriod, setEvolutionPeriod] = useState<'day' | 'week' | 'month' | 'quarter' | 'custom'>('month');
+  const [customDateRange, setCustomDateRange] = useState({ 
+    start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], 
+    end: new Date().toISOString().split('T')[0] 
+  });
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
@@ -83,18 +87,25 @@ export default function App() {
     if (!user || !token) return;
     try {
       // Define o range baseado no período selecionado
-      const rangeMap = {
+      const rangeMap: Record<string, number> = {
         day: 30,      // Últimos 30 dias
         week: 12,     // Últimas 12 semanas
         month: 12,    // Últimos 12 meses
         quarter: 8    // Últimos 8 trimestres
       };
 
+      let evolutionUrl = `/api/profit-evolution?period=${evolutionPeriod}`;
+      if (evolutionPeriod === 'custom') {
+        evolutionUrl += `&startDate=${customDateRange.start}&endDate=${customDateRange.end}`;
+      } else {
+        evolutionUrl += `&range=${rangeMap[evolutionPeriod]}`;
+      }
+
       const [productsRes, statsRes, productStatsRes, monthlyStatsRes, receivablesRes] = await Promise.allSettled([
         authFetch(`/api/products`), // Não precisa mais enviar userId na URL
         authFetch(`/api/stats`),
         authFetch(`/api/product-stats`),
-        authFetch(`/api/profit-evolution?period=${evolutionPeriod}&range=${rangeMap[evolutionPeriod]}`),
+        authFetch(evolutionUrl),
         authFetch(`/api/receivables`)
       ]);
 
@@ -130,8 +141,15 @@ export default function App() {
   useEffect(() => {
     if (user) {
       fetchData();
+
+      // Atualização automática em tempo real (Polling a cada 5 segundos)
+      const interval = setInterval(() => {
+        fetchData();
+      }, 5000);
+
+      return () => clearInterval(interval);
     }
-  }, [user, evolutionPeriod, token]);
+  }, [user, evolutionPeriod, customDateRange, token]);
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -407,6 +425,8 @@ export default function App() {
                 monthlyStats={monthlyStats}
                 evolutionPeriod={evolutionPeriod}
                 setEvolutionPeriod={setEvolutionPeriod}
+                customDateRange={customDateRange}
+                setCustomDateRange={setCustomDateRange}
                 darkMode={darkMode}
                 onViewFinanceiro={() => setActiveTab('financeiro')}
                 user={user}
@@ -420,6 +440,7 @@ export default function App() {
                 stats={stats} 
                 onMarkAsPaid={handleMarkAsPaid} 
                 onNewSale={() => setShowTransaction({ type: 'EXIT' })}
+                user={user}
               />
             )}
             {activeTab === 'manual' && <Manual />}

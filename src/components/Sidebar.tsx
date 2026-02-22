@@ -75,16 +75,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <TrendingUp size={20} />
                   <span className="font-medium">Informativo</span>
                 </button>
-                <button 
-                  type="button"
-                  onClick={() => setActiveTab('financeiro')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'financeiro' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
-                >
-                  <DollarSign size={20} />
-                  <span className="font-medium">Financeiro</span>
-                </button>
               </>
             )}
+            <button 
+              type="button"
+              onClick={() => setActiveTab('financeiro')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'financeiro' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+            >
+              <DollarSign size={20} />
+              <span className="font-medium">Financeiro</span>
+            </button>
             <button 
               type="button"
               onClick={() => setActiveTab('manual')}
@@ -222,16 +222,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        {user?.role !== 'colaborador' && (
-          <button 
-            type="button"
-            onClick={() => setActiveTab('financeiro')}
-            className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'financeiro' ? 'text-black dark:text-white' : 'text-gray-400'}`}
-          >
-            <DollarSign size={22} className={activeTab === 'financeiro' ? 'scale-110' : ''} />
-            <span className="text-[10px] font-bold uppercase tracking-tighter">Contas</span>
-          </button>
-        )}
+        <button 
+          type="button"
+          onClick={() => setActiveTab('financeiro')}
+          className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'financeiro' ? 'text-black dark:text-white' : 'text-gray-400'}`}
+        >
+          <DollarSign size={22} className={activeTab === 'financeiro' ? 'scale-110' : ''} />
+          <span className="text-[10px] font-bold uppercase tracking-tighter">Contas</span>
+        </button>
 
         <button 
           type="button"

@@ -3,13 +3,13 @@ import {
   DollarSign, 
   Clock, 
   CheckCircle2, 
-  User, 
+  User as UserIcon, 
   Package, 
   ArrowRight,
   Wallet,
   Plus
 } from 'lucide-react';
-import { Receivable, Stats } from '../types';
+import { Receivable, Stats, User } from '../types';
 import { motion } from 'motion/react';
 import { formatBRL } from '../utils/format';
 
@@ -18,9 +18,11 @@ interface FinanceiroProps {
   stats: Stats;
   onMarkAsPaid: (id: number, amount?: number) => void;
   onNewSale: () => void;
+  user: User | null;
 }
 
-export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMarkAsPaid, onNewSale }) => {
+export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMarkAsPaid, onNewSale, user }) => {
+  const isColaborador = user?.role === 'colaborador';
   const [partialPayment, setPartialPayment] = React.useState<{ id: number, amount: string } | null>(null);
   const totalReceivable = receivables.reduce((acc, r) => acc + (r.unit_cost * r.quantity - (r.amount_paid || 0)), 0);
   const totalExpectedProfit = receivables.reduce((acc, r) => acc + r.expected_profit, 0);
@@ -37,27 +39,31 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
     <div className="space-y-6">
       {/* Resumo Financeiro */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
-          <div className="flex items-center gap-2 text-emerald-600 mb-2">
-            <CheckCircle2 size={18} />
-            <span className="text-xs font-bold uppercase tracking-wider">Lucro Realizado</span>
+        {!isColaborador && (
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
+            <div className="flex items-center gap-2 text-emerald-600 mb-2">
+              <CheckCircle2 size={18} />
+              <span className="text-xs font-bold uppercase tracking-wider">Lucro Realizado</span>
+            </div>
+            <h3 className={`text-2xl font-bold ${stats.realized_profit >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600'}`}>
+              {formatBRL(stats.realized_profit)}
+            </h3>
+            <p className="text-gray-400 text-[10px] mt-1 uppercase">Valores já recebidos</p>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {formatBRL(stats.realized_profit)}
-          </h3>
-          <p className="text-gray-400 text-[10px] mt-1 uppercase">Valores já recebidos</p>
-        </div>
+        )}
 
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
-          <div className="flex items-center gap-2 text-amber-500 mb-2">
-            <Clock size={18} />
-            <span className="text-xs font-bold uppercase tracking-wider">A Receber (Lucro)</span>
+        {!isColaborador && (
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
+            <div className="flex items-center gap-2 text-amber-500 mb-2">
+              <Clock size={18} />
+              <span className="text-xs font-bold uppercase tracking-wider">A Receber (Lucro)</span>
+            </div>
+            <h3 className={`text-2xl font-bold ${stats.pending_profit >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600'}`}>
+              {formatBRL(stats.pending_profit)}
+            </h3>
+            <p className="text-gray-400 text-[10px] mt-1 uppercase">Lucro projetado pendente</p>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {formatBRL(stats.pending_profit)}
-          </h3>
-          <p className="text-gray-400 text-[10px] mt-1 uppercase">Lucro projetado pendente</p>
-        </div>
+        )}
 
         <div className="bg-black dark:bg-white p-6 rounded-2xl shadow-lg shadow-black/10 transition-colors">
           <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 mb-2">
@@ -100,7 +106,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
                 <th className="px-6 py-4">Produto</th>
                 <th className="px-6 py-4 text-center">Qtd</th>
                 <th className="px-6 py-4 text-right">Valor Venda</th>
-                <th className="px-6 py-4 text-right">Lucro Previsto</th>
+                {!isColaborador && <th className="px-6 py-4 text-right">Lucro Previsto</th>}
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
@@ -109,7 +115,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
                 <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 mb-1">
-                      <User size={14} className="text-gray-400 dark:text-gray-500" />
+                      <UserIcon size={14} className="text-gray-400 dark:text-gray-500" />
                       <p className="font-bold text-sm text-gray-900 dark:text-white">{r.client_name || 'Consumidor Final'}</p>
                     </div>
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
@@ -139,11 +145,13 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
                     )}
                     <p className="text-[10px] text-gray-400 dark:text-gray-500">Saldo: {formatBRL(r.unit_cost * r.quantity - r.amount_paid)}</p>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <p className="font-bold text-sm text-amber-600 dark:text-amber-400">
-                      {formatBRL(r.expected_profit)}
-                    </p>
-                  </td>
+                  {!isColaborador && (
+                    <td className="px-6 py-4 text-right">
+                      <p className={`font-bold text-sm ${r.expected_profit >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {formatBRL(r.expected_profit)}
+                      </p>
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-right space-y-2">
                     {partialPayment?.id === r.id ? (
                       <form onSubmit={handlePartialSubmit} className="flex items-center gap-2 justify-end">
@@ -206,7 +214,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-gray-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center">
-                    <User size={16} className="text-gray-500" />
+                    <UserIcon size={16} className="text-gray-500" />
                   </div>
                   <div>
                     <p className="font-bold text-sm dark:text-white">{r.client_name || 'Consumidor Final'}</p>

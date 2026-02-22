@@ -135,10 +135,10 @@ export const Informativo: React.FC<InformativoProps> = ({ productStats }) => {
                   <td className="px-6 py-4 text-center text-sm font-medium text-gray-700">
                     {stat.total_sold}
                   </td>
-                  <td className="px-6 py-4 text-right font-bold text-sm text-emerald-600">
+                  <td className={`px-6 py-4 text-right font-bold text-sm ${stat.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatBRL(stat.profit)}
                   </td>
-                  <td className="px-6 py-4 text-right text-xs font-medium text-gray-500">
+                  <td className={`px-6 py-4 text-right text-xs font-medium ${stat.total_sold > 0 && (stat.profit / stat.total_sold) < 0 ? 'text-rose-600' : 'text-gray-500'}`}>
                     {stat.total_sold > 0 ? formatBRL(stat.profit / stat.total_sold) : 'R$ 0,00'}
                   </td>
                 </tr>

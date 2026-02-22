@@ -27,6 +27,7 @@ describe('Fluxo Completo do Sistema de Estoque', () => {
     cy.intercept('POST', '/api/register').as('registerUser');
     cy.intercept('POST', '/api/login').as('loginUser');
     cy.intercept('POST', '/api/products').as('createProduct');
+    cy.intercept('POST', '/api/transactions').as('createTransaction');
 
     // 1. Acessar a aplicação
     cy.visit('http://localhost:3000');
@@ -85,22 +86,24 @@ describe('Fluxo Completo do Sistema de Estoque', () => {
     // --- TRANSAÇÃO DE ENTRADA ---
     cy.get('[data-testid="btn-entry"]').click();
     // Seleciona o produto usando string exata para maior estabilidade
-    cy.get('select[name="product_id"]').should('contain', 'Produto Teste Cypress').select('Produto Teste Cypress');
-    cy.get('input[name="quantity"]').clear().type('100');
-    cy.get('input[name="unit_cost"]').clear().type('10.00');
-    cy.get('form:visible').submit();
+    cy.get('[data-testid="select-product"]').should('contain', 'Produto Teste Cypress').select('Produto Teste Cypress');
+    cy.get('[data-testid="input-quantity"]').clear().type('100');
+    cy.get('[data-testid="input-unit-cost"]').clear().type('10.00');
+    cy.get('[data-testid="btn-confirm-transaction"]').click();
+    cy.wait('@createTransaction');
 
     // Verificar se o estoque atualizou na tabela (coluna de estoque atual)
     cy.contains('td', '100').should('be.visible');
 
     // --- TRANSAÇÃO DE SAÍDA ---
     cy.get('[data-testid="btn-exit"]').click();
-    cy.get('select[name="product_id"]').should('contain', 'Produto Teste Cypress').select('Produto Teste Cypress');
-    cy.get('input[name="quantity"]').clear().type('10');
-    cy.get('input[name="unit_cost"]').clear().type('20.00');
+    cy.get('[data-testid="select-product"]').should('contain', 'Produto Teste Cypress').select('Produto Teste Cypress');
+    cy.get('[data-testid="input-quantity"]').clear().type('10');
+    cy.get('[data-testid="input-unit-cost"]').clear().type('20.00');
     // Seleciona pelo texto visível da opção
-    cy.get('select[name="status"]').select('Pago');
-    cy.get('form:visible').submit();
+    cy.get('[data-testid="select-status"]').select('Pago');
+    cy.get('[data-testid="btn-confirm-transaction"]').click();
+    cy.wait('@createTransaction');
 
     // Verificar se o estoque atualizou (100 - 10 = 90)
     cy.contains('td', '90').should('be.visible');
