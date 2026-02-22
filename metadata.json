@@ -1,0 +1,5 @@
+{
+  "name": "Gestão de Estoque Inteligente",
+  "description": "Sistema completo de controle de estoque com cálculo de custo médio, alertas de reposição e fluxo de entrada/saída.",
+  "requestFramePermissions": []
+}
