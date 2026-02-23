@@ -261,13 +261,13 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
   };
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] bg-[#121214] text-gray-100 rounded-xl overflow-hidden font-sans shadow-2xl border border-zinc-800">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-11rem)] md:h-[calc(100vh-8rem)] lg:h-[calc(100vh-2rem)] bg-[#121214] text-gray-100 rounded-xl overflow-hidden font-sans shadow-2xl border border-zinc-800">
       
       {/* COLUNA ESQUERDA: Operação (Input + Lista) */}
-      <div className="flex-1 flex flex-col border-r border-zinc-800 relative">
+      <div className="flex-1 flex flex-col border-r border-zinc-800 relative min-h-0">
         
         {/* Topo: Input de Busca */}
-        <div className="p-6 bg-[#1A1A1E] border-b border-zinc-800 z-20 shadow-md">
+        <div className="p-4 lg:p-6 bg-[#1A1A1E] border-b border-zinc-800 z-20 shadow-md">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2 text-zinc-400">
               <Monitor size={18} />
@@ -289,7 +289,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
               onChange={(e) => setBarcode(e.target.value)}
               onKeyDown={handleScan}
               placeholder="Bipe o código ou digite o nome..."
-              className="w-full pl-14 pr-4 py-5 text-2xl font-bold bg-[#202024] border-2 border-zinc-700 rounded-xl focus:border-[#0055FF] focus:ring-4 focus:ring-[#0055FF]/20 outline-none text-white placeholder-zinc-600 transition-all shadow-inner"
+              className="w-full pl-14 pr-4 py-3 lg:py-5 text-lg lg:text-2xl font-bold bg-[#202024] border-2 border-zinc-700 rounded-xl focus:border-[#0055FF] focus:ring-4 focus:ring-[#0055FF]/20 outline-none text-white placeholder-zinc-600 transition-all shadow-inner"
               autoComplete="off"
             />
             {/* Sugestões */}
@@ -333,12 +333,12 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-[#121214] z-10 shadow-sm border-b border-zinc-800">
               <tr className="text-xs uppercase text-zinc-500 font-bold">
-                <th className="px-6 py-4 w-16">#</th>
-                <th className="px-6 py-4">Produto</th>
-                <th className="px-6 py-4 text-center w-32">Qtd</th>
-                <th className="px-6 py-4 text-right w-32">Unitário</th>
-                <th className="px-6 py-4 text-right w-32">Total</th>
-                <th className="px-6 py-4 text-center w-16"></th>
+                <th className="px-3 py-3 lg:px-6 lg:py-4 w-10 lg:w-16">#</th>
+                <th className="px-3 py-3 lg:px-6 lg:py-4">Produto</th>
+                <th className="px-3 py-3 lg:px-6 lg:py-4 text-center w-16 lg:w-32">Qtd</th>
+                <th className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right w-24 lg:w-32">Unitário</th>
+                <th className="px-3 py-3 lg:px-6 lg:py-4 text-right w-20 lg:w-32">Total</th>
+                <th className="px-3 py-3 lg:px-6 lg:py-4 text-center w-10 lg:w-16"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
@@ -362,19 +362,19 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                       ref={isLast ? listEndRef : null} 
                       className={`group transition-colors ${isLast ? 'bg-[#0055FF]/10' : 'hover:bg-zinc-800/30'}`}
                     >
-                      <td className="px-6 py-4 text-zinc-600 font-mono text-xs">{index + 1}</td>
-                      <td className="px-6 py-4">
-                        <p className="font-bold text-gray-200 text-lg">{item.product.name}</p>
+                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-zinc-600 font-mono text-xs">{index + 1}</td>
+                      <td className="px-3 py-3 lg:px-6 lg:py-4">
+                        <p className="font-bold text-gray-200 text-sm lg:text-lg line-clamp-2">{item.product.name}</p>
                         <p className="text-xs text-zinc-500 font-mono">{item.product.sku}</p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 lg:px-6 lg:py-4">
                         <div className="flex items-center justify-center gap-3 bg-zinc-900 rounded-lg p-1 border border-zinc-800">
                           <button onClick={() => updateQuantity(item.product.id, -1)} className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"><Minus size={14}/></button>
                           <span className="font-bold w-8 text-center text-white">{item.quantity}</span>
                           <button onClick={() => updateQuantity(item.product.id, 1)} className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"><Plus size={14}/></button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right">
                       <input 
                         type="number" 
                         step="0.01"
@@ -385,9 +385,9 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                         onClick={(e) => e.stopPropagation()}
                       />
                     </td>
-                      <td className="px-6 py-4 text-right font-bold text-white text-lg">{formatBRL(unitPrice * item.quantity)}</td>
-                      <td className="px-6 py-4 text-center">
-                        <button onClick={() => removeFromCart(item.product.id)} className="text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-right font-bold text-white text-sm lg:text-lg">{formatBRL(unitPrice * item.quantity)}</td>
+                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-center">
+                        <button onClick={() => removeFromCart(item.product.id)} className="text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-colors lg:opacity-0 lg:group-hover:opacity-100"><Trash2 size={18} /></button>
                       </td>
                     </tr>
                   );
@@ -398,7 +398,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         </div>
 
         {/* Rodapé de Atalhos */}
-        <div className="bg-[#1A1A1E] border-t border-zinc-800 p-3 flex justify-center gap-4 text-xs font-mono text-zinc-500 select-none">
+        <div className="bg-[#1A1A1E] border-t border-zinc-800 p-3 hidden lg:flex justify-center gap-4 text-xs font-mono text-zinc-500 select-none">
           <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800">
             <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">F2</span> Buscar
           </div>
@@ -412,11 +412,11 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
       </div>
 
       {/* COLUNA DIREITA: Resumo e Pagamento */}
-      <div className="w-96 bg-[#1A1A1E] flex flex-col border-l border-zinc-800 shadow-2xl z-30">
-        <div className="p-8 flex-1 flex flex-col">
-          <h2 className="text-zinc-400 uppercase text-xs font-bold tracking-widest mb-8">Resumo da Venda</h2>
+      <div className="w-full lg:w-96 bg-[#1A1A1E] flex flex-col border-t lg:border-t-0 lg:border-l border-zinc-800 shadow-2xl z-30 shrink-0">
+        <div className="p-4 lg:p-8 flex-1 flex flex-col">
+          <h2 className="text-zinc-400 uppercase text-xs font-bold tracking-widest mb-4 lg:mb-8 hidden lg:block">Resumo da Venda</h2>
           
-          <div className="space-y-6 mb-auto">
+          <div className="space-y-6 mb-auto hidden lg:block">
             <div className="flex justify-between items-center p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
               <span className="text-zinc-400 text-sm">Itens</span>
               <span className="text-white font-bold text-xl">{cart.reduce((acc, item) => acc + item.quantity, 0)}</span>
@@ -436,16 +436,21 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
             </div>
           </div>
 
-          <div className="mt-8 space-y-4">
-            <div className="text-right">
+          {/* Mobile Compact Summary */}
+          <div className="flex lg:hidden justify-between items-center mb-2 text-xs text-zinc-500">
+             <span>{cart.reduce((acc, item) => acc + item.quantity, 0)} itens no carrinho</span>
+          </div>
+
+          <div className="mt-0 lg:mt-8 space-y-2 lg:space-y-4">
+            <div className="flex justify-between items-end lg:block lg:text-right">
               <p className="text-zinc-500 text-sm font-medium mb-1">Total a Pagar</p>
-              <p className="text-5xl font-black text-white tracking-tight">{formatBRL(calculateTotal())}</p>
+              <p className="text-3xl lg:text-5xl font-black text-white tracking-tight">{formatBRL(calculateTotal())}</p>
             </div>
 
             <button
               onClick={() => setShowPaymentModal(true)}
               disabled={cart.length === 0}
-              className="w-full py-5 bg-[#0055FF] hover:bg-[#0044CC] text-white rounded-xl font-bold text-xl transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-3 mt-8"
+              className="w-full py-4 lg:py-5 bg-[#0055FF] hover:bg-[#0044CC] text-white rounded-xl font-bold text-lg lg:text-xl transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-3 mt-2 lg:mt-8"
             >
               <CheckCircle2 size={24} /> 
               Finalizar Venda

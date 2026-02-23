@@ -80,6 +80,21 @@ export default function App() {
     }
   }, [toast]);
 
+  // Atalho de teclado para trocar modo (Gestor) - Ctrl+M
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'm') {
+        if (user?.role === 'gestor') {
+          e.preventDefault();
+          localStorage.removeItem('appMode');
+          setScreen('mode_selection');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [user]);
+
   // Função auxiliar para fetch com autenticação
   const authFetch = async (url: string, options: RequestInit = {}) => {
     const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
@@ -419,6 +434,10 @@ export default function App() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         appMode={appMode}
+        onSwitchMode={() => {
+          localStorage.removeItem('appMode');
+          setScreen('mode_selection');
+        }}
       />
 
       <main className="md:ml-64 p-4 md:p-8">

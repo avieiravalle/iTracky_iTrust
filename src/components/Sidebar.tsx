@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store } from 'lucide-react';
+import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -13,6 +13,7 @@ interface SidebarProps {
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
   appMode?: 'full' | 'pos_finance';
+  onSwitchMode?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -24,7 +25,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onShowAddProduct,
   darkMode,
   setDarkMode,
-  appMode = 'full'
+  appMode = 'full',
+  onSwitchMode
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -159,6 +161,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-medium">Admin</span>
               </button>
             )}
+            {user?.role === 'gestor' && onSwitchMode && (
+              <button 
+                type="button"
+                onClick={onSwitchMode}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+              >
+                <ArrowLeftRight size={20} />
+                <span className="font-medium">Trocar Modo</span>
+              </button>
+            )}
           </nav>
 
           <button 
@@ -252,6 +264,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span>Instalar Aplicativo</span>
                   </button>
                 )}
+                {user?.role === 'gestor' && onSwitchMode && (
+                  <button 
+                    type="button"
+                    onClick={() => { onSwitchMode(); setShowMobileMenu(false); }}
+                    className="col-span-2 flex items-center justify-center gap-2 p-4 mt-2 text-gray-600 font-bold bg-gray-50 dark:bg-zinc-800 rounded-3xl border border-gray-200 dark:border-zinc-700 active:scale-95 transition-all"
+                  >
+                    <ArrowLeftRight size={20} />
+                    <span>Trocar Modo de Acesso</span>
+                  </button>
+                )}
                 <button 
                   type="button"
                   onClick={() => { setShowLogoutConfirmation(true); setShowMobileMenu(false); }}
@@ -267,7 +289,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </AnimatePresence>
 
       {/* Bottom Navigation - Mobile Only */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border-t border-[#E5E7EB] dark:border-zinc-800 z-20 flex justify-around items-center px-2 py-3 md:hidden transition-colors safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border-t border-[#E5E7EB] dark:border-zinc-800 z-50 flex justify-around items-center px-2 py-3 md:hidden transition-colors safe-area-bottom">
         {appMode === 'full' && (
           <button 
             type="button"
