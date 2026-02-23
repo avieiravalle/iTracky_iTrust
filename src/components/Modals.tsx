@@ -24,6 +24,8 @@ export const Modals: React.FC<ModalsProps> = ({
 }) => {
   const [sku, setSku] = useState('');
   const [skuError, setSkuError] = useState('');
+  const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState('PAID');
 
@@ -31,6 +33,8 @@ export const Modals: React.FC<ModalsProps> = ({
     if (!showAddProduct) {
       setSku('');
       setSkuError('');
+      setName('');
+      setNameError('');
     }
   }, [showAddProduct]);
 
@@ -45,6 +49,13 @@ export const Modals: React.FC<ModalsProps> = ({
     setSku(val);
     const exists = products.some(p => p.sku.toLowerCase() === val.toLowerCase());
     setSkuError(exists ? 'Este SKU já está em uso.' : '');
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setName(val);
+    const exists = products.some(p => p.name.toLowerCase() === val.toLowerCase());
+    setNameError(exists ? 'Este nome de produto já existe.' : '');
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -88,7 +99,16 @@ export const Modals: React.FC<ModalsProps> = ({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Nome do Produto</label>
-                <input name="name" data-testid="input-product-name" required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="Ex: Monitor Dell 24" />
+                <div className="relative">
+                  <input name="name" data-testid="input-product-name" required value={name} onChange={handleNameChange} className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none dark:text-white ${nameError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} placeholder="Ex: Monitor Dell 24" />
+                  {name && !nameError && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />}
+                </div>
+                {nameError && (
+                  <div className="flex items-center gap-1 mt-1 text-rose-500 text-xs font-bold">
+                    <AlertCircle size={12} />
+                    <span>{nameError}</span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">SKU / Código</label>
@@ -109,7 +129,7 @@ export const Modals: React.FC<ModalsProps> = ({
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" data-testid="btn-cancel-product" onClick={() => setShowAddProduct(false)} className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
-                <button type="submit" disabled={!!skuError || isSubmitting} data-testid="btn-save-product" className="flex-1 px-4 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
+                <button type="submit" disabled={!!skuError || !!nameError || isSubmitting} data-testid="btn-save-product" className="flex-1 px-4 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
                   {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : 'Salvar'}
                 </button>
               </div>

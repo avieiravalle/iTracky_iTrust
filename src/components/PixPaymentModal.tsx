@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, MessageCircle, Clock } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface PixPaymentModalProps {
   isOpen: boolean;
@@ -66,7 +67,11 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ isOpen, onClos
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative"
+      >
         <button type="button" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <X size={24} />
         </button>
@@ -127,7 +132,7 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ isOpen, onClos
         <p className="text-xs text-center text-gray-400 mt-4">
           Seu acesso será liberado após a confirmação do pagamento.
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 };

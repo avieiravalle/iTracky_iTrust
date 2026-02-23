@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, UserPlus, Users, ArrowLeft, KeyRound, Copy, QrCode } from 'lucide-react';
+import { Package, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, UserPlus, Users, ArrowLeft, KeyRound } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface AuthProps {
@@ -12,33 +12,6 @@ interface AuthProps {
   registeredEmail?: string;
   loginError?: string;
 }
-
-// Helper para gerar o payload do PIX (BR Code)
-const generatePixPayload = (key: string, name: string, city: string, amount: string, txId: string = '***') => {
-  const format = (id: string, val: string) => id + val.length.toString().padStart(2, '0') + val;
-  
-  const payload = 
-    '000201' +
-    format('26', '0014BR.GOV.BCB.PIX' + format('01', key)) +
-    format('52', '0000') +
-    format('53', '986') +
-    format('54', amount) +
-    format('58', 'BR') +
-    format('59', name) +
-    format('60', city) +
-    format('62', format('05', txId)) +
-    '6304';
-
-  let crc = 0xFFFF;
-  for (let i = 0; i < payload.length; i++) {
-    crc ^= payload.charCodeAt(i) << 8;
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 0x8000) !== 0) crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
-      else crc = (crc << 1) & 0xFFFF;
-    }
-  }
-  return payload + crc.toString(16).toUpperCase().padStart(4, '0');
-};
 
 export const Auth: React.FC<AuthProps> = ({ 
   screen, 
@@ -64,16 +37,6 @@ export const Auth: React.FC<AuthProps> = ({
   const [storeName, setStoreName] = useState('');
   const [storeError, setStoreError] = useState('');
   
-  // Dados do PIX para Gestor
-  const pixKey = "29556537805";
-  const pixPayload = generatePixPayload(pixKey, "Estoque App", "Sao Paulo", "100.00");
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`;
-
-  const handleCopyPix = () => {
-    navigator.clipboard.writeText(pixKey);
-    alert("Chave PIX copiada!");
-  };
-
   // Password Recovery State
   const [authMode, setAuthMode] = useState<'default' | 'forgot' | 'reset'>('default');
   const [resetToken, setResetToken] = useState('');
@@ -517,32 +480,6 @@ export const Auth: React.FC<AuthProps> = ({
             >
               {addressInfo}
             </motion.p>
-          )}
-
-          {role === 'gestor' && (
-            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 mb-4">
-              <div className="flex flex-col items-center mb-4 text-blue-800">
-                <div className="flex items-center gap-2">
-                  <QrCode size={16} />
-                  <span className="text-xs font-bold uppercase">Investimento para acesso</span>
-                </div>
-                <p className="text-3xl font-black text-blue-600 mt-1 tracking-tight">R$ 100,00</p>
-              </div>
-              <div className="flex justify-center mb-3">
-                <div className="bg-white p-2 rounded-xl border border-blue-100 shadow-sm">
-                    <img src={qrCodeUrl} alt="QR Code PIX" className="w-32 h-32 object-contain" />
-                </div>
-              </div>
-              <div className="flex items-center gap-2 bg-white border border-blue-200 p-2 rounded-lg">
-                <span className="font-mono text-xs text-gray-600 flex-1 text-center">{pixKey}</span>
-                <button type="button" onClick={handleCopyPix} className="text-blue-600 hover:text-blue-700 p-1" title="Copiar Chave">
-                  <Copy size={14} />
-                </button>
-              </div>
-              <p className="text-[9px] text-center text-blue-600 mt-2">
-                Realize o pagamento para ativar sua conta de Gestor.
-              </p>
-            </div>
           )}
 
           <button 

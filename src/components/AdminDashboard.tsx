@@ -34,6 +34,7 @@ export const AdminDashboard: React.FC = () => {
   const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending'>('all');
+  const [logSearchTerm, setLogSearchTerm] = useState('');
   
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<AppSale[]>([]);
@@ -230,7 +231,8 @@ export const AdminDashboard: React.FC = () => {
   const filteredClients = clients.filter(c => 
     (c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     c.establishment_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c as any).store_code?.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (filterStatus === 'all' || (filterStatus === 'pending' && c.status === 'pending'))
   );
 
@@ -239,6 +241,12 @@ export const AdminDashboard: React.FC = () => {
   );
 
   const totalRevenue = filteredSales.reduce((acc, s) => acc + s.amount, 0);
+
+  const filteredLogs = logs.filter(log => 
+    (log.user_name?.toLowerCase() || '').includes(logSearchTerm.toLowerCase()) ||
+    log.action.toLowerCase().includes(logSearchTerm.toLowerCase()) ||
+    log.details.toLowerCase().includes(logSearchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-8 pb-12">
@@ -321,7 +329,7 @@ export const AdminDashboard: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar cliente..." 
+              placeholder="Buscar por nome, email ou código..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white"
@@ -333,7 +341,8 @@ export const AdminDashboard: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 dark:bg-zinc-800/50 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-bold">
-                <th className="px-6 py-4">Cliente / Estabelecimento</th>
+                <th className="px-6 py-4">Cliente / Email</th>
+                <th className="px-6 py-4">Loja / Código</th>
                 <th className="px-6 py-4">Perfil</th>
                 <th className="px-6 py-4">Plano</th>
                 <th className="px-6 py-4">Status Pagamento</th>
@@ -349,8 +358,21 @@ export const AdminDashboard: React.FC = () => {
                 return (
                   <tr key={client.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-bold text-sm dark:text-white">{client.name}</p>
-                      <p className="text-xs text-gray-500">{client.establishment_name}</p>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-sm dark:text-white">{client.name}</span>
+                        <span className="text-xs text-gray-400 select-all">{client.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-medium dark:text-white">{client.establishment_name}</p>
+                      {(client as any).store_code && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <Key size={12} className="text-gray-400" />
+                          <code className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 px-2 py-0.5 rounded select-all cursor-text" title="Código da Loja">
+                            {(client as any).store_code}
+                          </code>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${client.role === 'gestor' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-500/10 dark:text-zinc-400'}`}>
@@ -446,9 +468,21 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Logs de Auditoria */}
       <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
-        <div className="p-6 border-b border-gray-50 dark:border-zinc-800 flex items-center gap-2">
-          <FileText className="text-gray-500" size={24} />
-          <h3 className="font-bold text-xl dark:text-white">Logs de Auditoria</h3>
+        <div className="p-6 border-b border-gray-50 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <FileText className="text-gray-500" size={24} />
+            <h3 className="font-bold text-xl dark:text-white">Logs de Auditoria</h3>
+          </div>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Buscar usuário ou ação..." 
+              value={logSearchTerm}
+              onChange={(e) => setLogSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white"
+            />
+          </div>
         </div>
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-left border-collapse">
@@ -461,7 +495,7 @@ export const AdminDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
-              {logs.map(log => (
+              {filteredLogs.map(log => (
                 <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors text-sm">
                   <td className="px-6 py-3 text-gray-500 font-mono text-xs">
                     {new Date(log.timestamp).toLocaleString('pt-BR')}

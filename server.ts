@@ -567,7 +567,7 @@ export async function createApp() {
 
   app.get("/api/admin/users", (req, res) => {
     try {
-      const users = db.prepare("SELECT id, name, email, establishment_name, role, status, last_payment, plan FROM users WHERE role != 'admin'").all();
+      const users = db.prepare("SELECT id, name, email, establishment_name, role, status, last_payment, plan, store_code FROM users WHERE role != 'admin'").all();
       res.json(users);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

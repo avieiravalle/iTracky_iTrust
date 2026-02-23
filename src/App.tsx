@@ -330,26 +330,23 @@ export default function App() {
 
   if (screen === 'login' || screen === 'register') {
     return (
-      <Auth 
-        screen={screen} 
-        setScreen={setScreen} 
-        onLogin={handleLogin} 
-        onRegister={handleRegister}
-        onClearError={() => setLoginError('')}
-        onAdminClick={() => setScreen('admin')}
-        registeredEmail={registeredEmail}
-        loginError={loginError}
-      />
-    );
-  }
-
-  if (showPaymentModal) {
-    return (
-      <PixPaymentModal 
-        isOpen={showPaymentModal} 
-        onClose={() => { setShowPaymentModal(false); setScreen('login'); }} 
-        email={registeredEmail} 
-      />
+      <>
+        <Auth 
+          screen={screen} 
+          setScreen={setScreen} 
+          onLogin={handleLogin} 
+          onRegister={handleRegister}
+          onClearError={() => setLoginError('')}
+          onAdminClick={() => setScreen('admin')}
+          registeredEmail={registeredEmail}
+          loginError={loginError}
+        />
+        <PixPaymentModal 
+          isOpen={showPaymentModal} 
+          onClose={() => { setShowPaymentModal(false); setScreen('login'); }} 
+          email={registeredEmail} 
+        />
+      </>
     );
   }
 
