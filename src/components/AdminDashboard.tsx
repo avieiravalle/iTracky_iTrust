@@ -248,6 +248,22 @@ export const AdminDashboard: React.FC = () => {
     log.details.toLowerCase().includes(logSearchTerm.toLowerCase())
   );
 
+  // Agrupamento por Loja/Código
+  const groupedClients = filteredClients.reduce((groups, client) => {
+    const code = (client as any).store_code || 'OUTROS';
+    if (!groups[code]) {
+      groups[code] = [];
+    }
+    groups[code].push(client);
+    return groups;
+  }, {} as Record<string, typeof clients>);
+
+  const sortedGroupKeys = Object.keys(groupedClients).sort((a, b) => {
+    if (a === 'OUTROS') return 1;
+    if (b === 'OUTROS') return -1;
+    return a.localeCompare(b);
+  });
+
   return (
     <div className="space-y-8 pb-12">
       {/* Resumo Admin */}
@@ -351,90 +367,127 @@ export const AdminDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
-              {filteredClients.map(client => {
-                const daysOverdue = getDaysOverdue(client.last_payment);
-                const isCritical = daysOverdue > 30;
+              {sortedGroupKeys.map(groupKey => {
+                const group = groupedClients[groupKey];
+                // Ordenar: Gestor primeiro
+                const sortedGroup = group.sort((a, b) => {
+                  if (a.role === 'gestor' && b.role !== 'gestor') return -1;
+                  if (a.role !== 'gestor' && b.role === 'gestor') return 1;
+                  return a.name.localeCompare(b.name);
+                });
+
+                const isStoreGroup = groupKey !== 'OUTROS';
+                const storeName = isStoreGroup ? sortedGroup.find(c => c.role === 'gestor')?.establishment_name || sortedGroup[0].establishment_name : 'Sem Loja';
                 
                 return (
-                  <tr key={client.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm dark:text-white">{client.name}</span>
-                        <span className="text-xs text-gray-400 select-all">{client.email}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-medium dark:text-white">{client.establishment_name}</p>
-                      {(client as any).store_code && (
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <Key size={12} className="text-gray-400" />
-                          <code className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 px-2 py-0.5 rounded select-all cursor-text" title="Código da Loja">
-                            {(client as any).store_code}
-                          </code>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${client.role === 'gestor' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-500/10 dark:text-zinc-400'}`}>
-                        {client.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${client.plan === 'Premium' ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'}`}>
-                        {client.plan}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {isCritical ? (
-                        <span className="inline-flex items-center gap-1 text-rose-600 text-xs font-bold bg-rose-50 dark:bg-rose-500/10 px-2 py-1 rounded-lg">
-                          <AlertCircle size={14} />
-                          Atrasado ({daysOverdue} dias)
-                        </span>
-                      ) : client.status === 'active' ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-bold">
-                          <CheckCircle2 size={14} />
-                          Em dia
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-amber-500 text-xs font-bold">
-                          <Clock size={14} />
-                          Pendente
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(client.last_payment).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-1">
-                      <button 
-                        type="button"
-                        onClick={() => registerPayment(client.id)}
-                        className={`p-2 rounded-lg transition-colors ${client.status === 'pending' ? 'text-emerald-600 bg-emerald-100 hover:bg-emerald-200 animate-pulse' : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'}`}
-                        title={client.status === 'pending' ? "Confirmar Pagamento e Aprovar" : "Registrar Pagamento"}
-                      >
-                        <CreditCard size={18} />
-                      </button>
-                      <button type="button" className="p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Resetar Senha">
-                        <Key size={18} />
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => toggleStatus(client.id)}
-                        className={`p-2 transition-colors ${client.status === 'active' ? 'text-amber-400 hover:text-amber-600' : 'text-emerald-400 hover:text-emerald-600'}`}
-                        title={client.status === 'active' ? 'BLOQUEAR ACESSO (Desconecta Imediatamente)' : 'Liberar Acesso'}
-                      >
-                        {client.status === 'active' ? <Ban size={18} /> : <CheckCircle2 size={18} />}
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => deleteClient(client.id)}
-                        className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
-                        title="Deletar Cliente"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
+                  <React.Fragment key={groupKey}>
+                    {isStoreGroup && (
+                      <tr className="bg-gray-50/80 dark:bg-zinc-800/30 border-y border-gray-100 dark:border-zinc-800">
+                        <td colSpan={7} className="px-6 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-1.5 bg-blue-100 dark:bg-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400">
+                              <Users size={16} />
+                            </div>
+                            <span className="font-bold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                              {storeName}
+                            </span>
+                            <span className="px-2 py-0.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded text-[10px] font-mono font-bold text-gray-500">
+                              {groupKey}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-medium">
+                              ({group.length} usuários)
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {sortedGroup.map(client => {
+                      const daysOverdue = getDaysOverdue(client.last_payment);
+                      const isCritical = daysOverdue > 30;
+                      
+                      return (
+                        <tr key={client.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm dark:text-white">{client.name}</span>
+                              <span className="text-xs text-gray-400 select-all">{client.email}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-medium dark:text-white">{client.establishment_name}</p>
+                            {(client as any).store_code && (
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <Key size={12} className="text-gray-400" />
+                                <code className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 px-2 py-0.5 rounded select-all cursor-text" title="Código da Loja">
+                                  {(client as any).store_code}
+                                </code>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${client.role === 'gestor' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-500/10 dark:text-zinc-400'}`}>
+                              {client.role}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${client.plan === 'Premium' ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'}`}>
+                              {client.plan}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {isCritical ? (
+                              <span className="inline-flex items-center gap-1 text-rose-600 text-xs font-bold bg-rose-50 dark:bg-rose-500/10 px-2 py-1 rounded-lg">
+                                <AlertCircle size={14} />
+                                Atrasado ({daysOverdue} dias)
+                              </span>
+                            ) : client.status === 'active' ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-bold">
+                                <CheckCircle2 size={14} />
+                                Em dia
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-amber-500 text-xs font-bold">
+                                <Clock size={14} />
+                                Pendente
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                            {new Date(client.last_payment).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="px-6 py-4 text-right space-x-1">
+                            <button 
+                              type="button"
+                              onClick={() => registerPayment(client.id)}
+                              className={`p-2 rounded-lg transition-colors ${client.status === 'pending' ? 'text-emerald-600 bg-emerald-100 hover:bg-emerald-200 animate-pulse' : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'}`}
+                              title={client.status === 'pending' ? "Confirmar Pagamento e Aprovar" : "Registrar Pagamento"}
+                            >
+                              <CreditCard size={18} />
+                            </button>
+                            <button type="button" className="p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Resetar Senha">
+                              <Key size={18} />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => toggleStatus(client.id)}
+                              className={`p-2 transition-colors ${client.status === 'active' ? 'text-amber-400 hover:text-amber-600' : 'text-emerald-400 hover:text-emerald-600'}`}
+                              title={client.status === 'active' ? 'BLOQUEAR ACESSO (Desconecta Imediatamente)' : 'Liberar Acesso'}
+                            >
+                              {client.status === 'active' ? <Ban size={18} /> : <CheckCircle2 size={18} />}
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => deleteClient(client.id)}
+                              className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                              title="Deletar Cliente"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })}
             </tbody>
