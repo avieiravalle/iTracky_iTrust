@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -25,6 +25,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setDarkMode
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isIos, setIsIos] = useState(false);
+  const [showIosInstructions, setShowIosInstructions] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+
+  useEffect(() => {
+    // Detectar iOS e verificar se já não está instalado (standalone)
+    const isIosDevice = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isIosDevice && !isStandalone) {
+      setIsIos(true);
+    }
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choice: any) => {
+      if (choice.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    });
+  };
 
   return (
     <>
@@ -93,6 +123,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <BookOpen size={20} />
               <span className="font-medium">Ajuda/Manual</span>
             </button>
+            {(installPrompt || isIos) && (
+              <button 
+                type="button"
+                onClick={installPrompt ? handleInstall : () => setShowIosInstructions(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+              >
+                <Download size={20} />
+                <span className="font-medium">Instalar App</span>
+              </button>
+            )}
             {user?.role === 'admin' && (
               <button 
                 type="button"
@@ -107,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button 
             type="button"
-            onClick={onLogout}
+            onClick={() => setShowLogoutConfirmation(true)}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all mt-auto"
           >
             <ArrowUpCircle size={20} className="rotate-90" />
@@ -186,6 +226,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                   <ArrowRight size={20} className="opacity-40" />
                 </button>
+                {(installPrompt || isIos) && (
+                  <button 
+                    type="button"
+                    onClick={() => { installPrompt ? handleInstall() : setShowIosInstructions(true); setShowMobileMenu(false); }}
+                    className="col-span-2 flex items-center justify-center gap-2 p-4 mt-2 text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-500/10 rounded-3xl border border-emerald-100 dark:border-emerald-500/20 active:scale-95 transition-all hover:bg-emerald-100 dark:hover:bg-emerald-500/20"
+                  >
+                    <Download size={20} />
+                    <span>Instalar Aplicativo</span>
+                  </button>
+                )}
+                <button 
+                  type="button"
+                  onClick={() => { setShowLogoutConfirmation(true); setShowMobileMenu(false); }}
+                  className="col-span-2 flex items-center justify-center gap-2 p-4 mt-2 text-rose-600 font-bold bg-rose-50 dark:bg-rose-500/10 rounded-3xl border border-rose-100 dark:border-rose-500/20 active:scale-95 transition-all hover:bg-rose-100 dark:hover:bg-rose-500/20"
+                >
+                  <ArrowUpCircle size={20} className="rotate-90" />
+                  <span>Sair do Sistema</span>
+                </button>
               </div>
             </motion.div>
           </>
@@ -250,6 +308,81 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
       </nav>
+
+      {/* Modal de Instruções iOS */}
+      <AnimatePresence>
+        {showIosInstructions && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-lg dark:text-white">Instalar no iPhone/iPad</h3>
+                <button onClick={() => setShowIosInstructions(false)} className="p-2 bg-gray-100 dark:bg-zinc-800 rounded-full text-gray-500">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300">
+                <p>O iOS não permite instalação automática. Siga os passos:</p>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                  <span className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold rounded-lg shrink-0">1</span>
+                  <p>Toque no botão <span className="font-bold">Compartilhar</span> <Share className="inline w-4 h-4 mx-1" /> na barra do navegador.</p>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                  <span className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold rounded-lg shrink-0">2</span>
+                  <p>Role para baixo e toque em <span className="font-bold">Adicionar à Tela de Início</span>.</p>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                  <span className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold rounded-lg shrink-0">3</span>
+                  <p>Confirme clicando em <span className="font-bold">Adicionar</span> no canto superior.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowIosInstructions(false)}
+                className="w-full mt-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                Entendi
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Confirmação de Logout */}
+      <AnimatePresence>
+        {showLogoutConfirmation && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-gray-100 dark:border-zinc-800"
+            >
+              <h3 className="font-bold text-lg dark:text-white mb-2">Sair do Sistema?</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                Tem certeza que deseja desconectar da sua conta?
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowLogoutConfirmation(false)}
+                  className="flex-1 py-3 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => { setShowLogoutConfirmation(false); onLogout(); }}
+                  className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-600/20"
+                >
+                  Sair
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

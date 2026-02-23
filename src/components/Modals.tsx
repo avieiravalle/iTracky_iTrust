@@ -243,7 +243,7 @@ export const Modals: React.FC<ModalsProps> = ({
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Estoque Mínimo (Alerta)</label>
-                <input name="min_stock" data-testid="input-product-min-stock" type="number" defaultValue={5} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
+                <input name="min_stock" data-testid="input-product-min-stock" type="number" inputMode="numeric" defaultValue={5} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" data-testid="btn-cancel-product" onClick={() => setShowAddProduct(false)} className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
@@ -324,13 +324,13 @@ export const Modals: React.FC<ModalsProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Quantidade</label>
-                  <input name="quantity" data-testid="input-quantity" type="number" required min="1" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0" />
+                  <input name="quantity" data-testid="input-quantity" type="number" inputMode="numeric" required min="1" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">
                     {showTransaction.type === 'ENTRY' ? 'Custo (R$)' : 'Preço (R$)'}
                   </label>
-                  <input name="unit_cost" data-testid="input-unit-cost" type="number" step="0.01" required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0,00" />
+                  <input name="unit_cost" data-testid="input-unit-cost" type="number" inputMode="decimal" step="0.01" required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0,00" />
                 </div>
               </div>
 
