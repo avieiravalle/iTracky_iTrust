@@ -219,7 +219,7 @@ export async function createApp() {
     }
   });
 
-  app.post("/api/register", (req, res) => {
+  app.post("/api/register", async (req, res) => {
     const { name, email, password, cep, establishment_name, role, store_code } = req.body;
     try {
       // Check if email exists
@@ -237,6 +237,28 @@ export async function createApp() {
         const initialStatus = isTest ? 'active' : 'pending';
         const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role, store_code, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
           .run(name, email, password, cep, establishment_name, 'gestor', finalCode, initialStatus);
+        
+        // Notificar Admin sobre novo gestor
+        try {
+          await transporter.sendMail({
+            from: '"Sistema Estoque" <noreply@estoque.com>',
+            to: 'avieiravale@gmail.com',
+            subject: `Novo Gestor Cadastrado: ${name}`,
+            html: `
+              <h2>Novo Cadastro de Gestor</h2>
+              <p>Um novo gestor solicitou acesso ao sistema:</p>
+              <ul>
+                <li><strong>Nome:</strong> ${name}</li>
+                <li><strong>Email:</strong> ${email}</li>
+                <li><strong>Loja:</strong> ${establishment_name}</li>
+                <li><strong>Código:</strong> ${finalCode}</li>
+              </ul>
+            `
+          });
+        } catch (emailError) {
+          console.error("Erro ao enviar notificação de email:", emailError);
+        }
+
         res.json({ id: info.lastInsertRowid, store_code: finalCode, status: initialStatus });
       } else if (role === 'colaborador') {
         const store = db.prepare("SELECT id, establishment_name FROM users WHERE store_code = ? AND role = 'gestor'").get(store_code) as any;

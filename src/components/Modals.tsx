@@ -34,6 +34,7 @@ export const Modals: React.FC<ModalsProps> = ({
   const [searchSku, setSearchSku] = useState('');
   const [prefilledSku, setPrefilledSku] = useState('');
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const lastScanTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!showAddProduct) {
@@ -87,7 +88,40 @@ export const Modals: React.FC<ModalsProps> = ({
     };
   }, [isScanning, products, showTransaction]);
 
+  const playBeep = () => {
+    try {
+      // Cria o contexto de áudio (funciona na maioria dos navegadores modernos)
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sine'; // Tipo de onda (senoidal = som limpo)
+        osc.frequency.value = 1200; // Frequência em Hz (Bip agudo)
+        gain.gain.value = 0.1; // Volume (10% para não ser estridente)
+        
+        osc.start();
+        setTimeout(() => {
+          osc.stop();
+          ctx.close();
+        }, 150); // Duração de 150ms
+      }
+    } catch (e) {
+      console.error("Erro ao tocar som de bip", e);
+    }
+  };
+
   const handleProductFound = (skuCode: string) => {
+    const now = Date.now();
+    if (now - lastScanTimeRef.current < 1000) return;
+    lastScanTimeRef.current = now;
+
+    playBeep();
+    if (navigator.vibrate) navigator.vibrate(200);
     const product = products.find(p => p.sku.toLowerCase() === skuCode.toLowerCase());
     
     if (product) {

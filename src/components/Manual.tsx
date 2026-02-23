@@ -10,7 +10,8 @@ import {
   ArrowUpCircle,
   HelpCircle,
   CheckCircle2,
-  Clock
+  Clock,
+  ScanBarcode
 } from 'lucide-react';
 
 export const Manual: React.FC = () => {
@@ -24,6 +25,11 @@ export const Manual: React.FC = () => {
       title: 'Inventário (Estoque)',
       icon: <Package className="text-orange-500" size={24} />,
       content: 'Gerencie seus produtos. Você pode cadastrar novos itens com SKU e estoque mínimo. O sistema alertará automaticamente quando um produto estiver com estoque baixo (cor vermelha).'
+    },
+    {
+      title: 'Scanner e Leitor de Código',
+      icon: <ScanBarcode className="text-purple-500" size={24} />,
+      content: 'Agilize suas entradas e saídas usando o leitor. Você pode usar a câmera do seu celular/computador clicando no ícone de câmera, ou usar um leitor USB externo. Ao escanear um produto já cadastrado, ele é selecionado automaticamente. Se for um novo código na entrada, o sistema sugere o cadastro imediato.'
     },
     {
       title: 'Informativo de Lucros',
@@ -101,7 +107,9 @@ export const Manual: React.FC = () => {
         </div>
         <div>
           <h4 className="font-bold text-blue-900 text-lg mb-1">Precisa de mais ajuda?</h4>
-          <p className="text-blue-700 text-sm">Nossa equipe está à disposição para tirar dúvidas sobre cálculos de custo médio ou gestão de estoque. Entre em contato pelo suporte.</p>
+          <p className="text-blue-700 text-sm">
+            Nossa equipe está à disposição para tirar dúvidas sobre cálculos de custo médio ou gestão de estoque. Entre em contato pelo suporte: <a href="mailto:avieiravale@gmail.com" className="font-bold underline hover:text-blue-900">avieiravale@gmail.com</a>
+          </p>
         </div>
       </div>
     </div>
