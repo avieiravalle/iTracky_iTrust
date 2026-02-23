@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
-import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X, Search } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface ModalsProps {
@@ -32,9 +32,11 @@ export const Modals: React.FC<ModalsProps> = ({
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
   const [searchSku, setSearchSku] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [prefilledSku, setPrefilledSku] = useState('');
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const lastScanTimeRef = useRef<number>(0);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!showAddProduct) {
@@ -53,6 +55,7 @@ export const Modals: React.FC<ModalsProps> = ({
       setTransactionStatus('PAID');
       setSelectedProductId(showTransaction.productId ? showTransaction.productId.toString() : '');
       setSearchSku('');
+      setSearchTerm('');
       setIsScanning(false);
     }
   }, [showTransaction]);
@@ -127,6 +130,7 @@ export const Modals: React.FC<ModalsProps> = ({
     if (product) {
       setSelectedProductId(product.id.toString());
       setSearchSku(product.sku);
+      setSearchTerm('');
     } else {
       if (showTransaction?.type === 'ENTRY') {
         if (window.confirm(`Produto com SKU "${skuCode}" não encontrado. Deseja cadastrá-lo agora?`)) {
@@ -202,6 +206,13 @@ export const Modals: React.FC<ModalsProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  // Filtra os produtos com base no texto digitado (Nome ou SKU)
+  const filteredProducts = products.filter(p => 
+    searchTerm === '' ||
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <AnimatePresence>
@@ -294,9 +305,8 @@ export const Modals: React.FC<ModalsProps> = ({
                       value={searchSku}
                       onChange={handleSkuSearchChange}
                       onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleProductFound(searchSku); } }}
-                      placeholder="Bipe o código ou digite SKU..." 
+                      placeholder="Clique aqui para usar o leitor USB..." 
                       className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white"
-                      autoFocus 
                     />
                     <button 
                       type="button"
@@ -311,20 +321,48 @@ export const Modals: React.FC<ModalsProps> = ({
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Buscar Produto</label>
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filteredProducts.length > 0) {
+                        e.preventDefault(); // Evita enviar o formulário
+                        const firstProduct = filteredProducts[0];
+                        setSelectedProductId(firstProduct.id.toString());
+                        setSearchSku(firstProduct.sku);
+                        setSearchTerm(''); // Limpa a busca após selecionar
+                        setTimeout(() => {
+                          quantityInputRef.current?.focus();
+                        }, 10);
+                      }
+                    }}
+                    placeholder="Digite o nome para filtrar a lista..." 
+                    className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white text-sm"
+                    autoFocus
+                  />
+                </div>
+
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Produto</label>
                 <select name="product_id" data-testid="select-product" required value={selectedProductId} onChange={handleManualProductSelect} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
                   <option value="">Selecione um produto...</option>
-                  {products.map(p => (
+                  {filteredProducts.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name} (SKU: {p.sku}) {showTransaction.type === 'EXIT' ? `- Est: ${p.current_stock}` : ''}
                     </option>
                   ))}
                 </select>
+                {searchTerm && filteredProducts.length === 0 && (
+                  <p className="text-xs text-rose-500 mt-1 ml-1">Nenhum produto encontrado com "{searchTerm}"</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Quantidade</label>
-                  <input name="quantity" data-testid="input-quantity" type="number" inputMode="numeric" required min="1" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0" />
+                  <input ref={quantityInputRef} name="quantity" data-testid="input-quantity" type="number" inputMode="numeric" required min="1" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">

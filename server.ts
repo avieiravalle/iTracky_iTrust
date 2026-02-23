@@ -219,7 +219,7 @@ export async function createApp() {
     }
   });
 
-  app.post("/api/register", async (req, res) => {
+  app.post("/api/register", (req, res) => {
     const { name, email, password, cep, establishment_name, role, store_code } = req.body;
     try {
       // Check if email exists
@@ -238,27 +238,38 @@ export async function createApp() {
         const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role, store_code, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
           .run(name, email, password, cep, establishment_name, 'gestor', finalCode, initialStatus);
         
-        // Notificar Admin sobre novo gestor
-        try {
-          await transporter.sendMail({
-            from: '"Sistema Estoque" <noreply@estoque.com>',
+        // Alerta por E-mail para o Admin
+        if (!isTest) {
+          transporter.sendMail({
+            from: '"StockFlow System" <noreply@estoque.com>',
             to: 'avieiravale@gmail.com',
-            subject: `Novo Gestor Cadastrado: ${name}`,
+            subject: '🔔 Novo Gestor Aguardando Aprovação',
             html: `
-              <h2>Novo Cadastro de Gestor</h2>
-              <p>Um novo gestor solicitou acesso ao sistema:</p>
-              <ul>
-                <li><strong>Nome:</strong> ${name}</li>
-                <li><strong>Email:</strong> ${email}</li>
-                <li><strong>Loja:</strong> ${establishment_name}</li>
-                <li><strong>Código:</strong> ${finalCode}</li>
-              </ul>
+              <h3>Novo Cadastro Pendente</h3>
+              <p><strong>Nome:</strong> ${name}</p>
+              <p><strong>Loja:</strong> ${establishment_name}</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p>Acesse o painel administrativo para aprovar.</p>
             `
-          });
-        } catch (emailError) {
-          console.error("Erro ao enviar notificação de email:", emailError);
+          }).catch(err => console.error("Erro ao enviar alerta para admin:", err));
+
+          // Alerta via WhatsApp para o Admin (11930051475)
+          // Nota: Para envio real, integre com uma API (ex: Z-API, Twilio, CallMeBot)
+          const adminPhone = "5511930051475";
+          const waMessage = `🔔 *Novo Gestor Pendente*\n\n👤 *Nome:* ${name}\n🏢 *Loja:* ${establishment_name}\n📧 *Email:* ${email}\n\n_Acesse o painel para liberar._`;
+          
+          // Exemplo de implementação (Descomente e ajuste a URL/Token do seu provedor):
+          /*
+          fetch('https://api.seuservico-whatsapp.com/send-text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer SEU_TOKEN_AQUI' },
+            body: JSON.stringify({ phone: adminPhone, message: waMessage })
+          }).catch(err => console.error("Erro ao enviar WhatsApp:", err));
+          */
+          console.log(`[WHATSAPP ALERT] Para: ${adminPhone} | Msg: ${waMessage.replace(/\n/g, ' ')}`);
         }
 
+        logAudit(info.lastInsertRowid as number, name, 'CADASTRO_GESTOR', `Novo gestor registrado: ${email} - Loja: ${establishment_name}`);
         res.json({ id: info.lastInsertRowid, store_code: finalCode, status: initialStatus });
       } else if (role === 'colaborador') {
         const store = db.prepare("SELECT id, establishment_name FROM users WHERE store_code = ? AND role = 'gestor'").get(store_code) as any;
@@ -270,9 +281,11 @@ export async function createApp() {
 
         const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role, parent_id, store_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
           .run(name, email, password, cep, store.establishment_name, 'colaborador', store.id, store_code);
+        logAudit(info.lastInsertRowid as number, name, 'CADASTRO_COLABORADOR', `Novo colaborador vinculado à loja ${store.establishment_name}`);
         res.json({ id: info.lastInsertRowid });
       } else {
         const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name) VALUES (?, ?, ?, ?, ?)").run(name, email, password, cep, establishment_name);
+        logAudit(info.lastInsertRowid as number, name, 'CADASTRO_USER', `Novo usuário registrado: ${email}`);
         res.json({ id: info.lastInsertRowid });
       }
     } catch (error: any) {
@@ -340,6 +353,8 @@ export async function createApp() {
       db.prepare("UPDATE users SET password = ? WHERE email = ?").run(newPassword, email);
       db.prepare("DELETE FROM password_resets WHERE email = ?").run(email);
 
+      const user = db.prepare("SELECT id, name FROM users WHERE email = ?").get(email) as any;
+      if (user) logAudit(user.id, user.name, 'RESET_SENHA', 'Senha alterada via recuperação de conta');
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -365,8 +380,16 @@ export async function createApp() {
       if (!user) return res.status(404).json({ error: "User not found" });
       
       const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+      const sort = req.query.sort as string;
       
-      const products = db.prepare("SELECT * FROM products WHERE user_id = ?").all(ownerId);
+      let orderBy = "ORDER BY name ASC";
+      if (sort === 'stock_desc') {
+        orderBy = "ORDER BY current_stock DESC";
+      } else if (sort === 'stock_asc') {
+        orderBy = "ORDER BY current_stock ASC";
+      }
+      
+      const products = db.prepare(`SELECT * FROM products WHERE user_id = ? ${orderBy}`).all(ownerId);
       res.json(products);
     } catch (error: any) {
       console.error("Error fetching products:", error);
@@ -512,7 +535,7 @@ export async function createApp() {
     }
   });
 
-  app.post("/api/transactions/:id/pay", authenticateToken, (req, res) => {
+  app.post("/api/transactions/:id/pay", authenticateToken, (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
       const { amount } = req.body;
@@ -532,6 +555,8 @@ export async function createApp() {
           .run(totalValue, id);
       }
       
+      const user = req.user;
+      logAudit(user.id, user.name, 'RECEBIMENTO_VENDA', `Recebimento registrado na transação ID ${id}`);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -545,6 +570,7 @@ export async function createApp() {
       const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
 
       const info = db.prepare("INSERT INTO products (user_id, name, sku, min_stock) VALUES (?, ?, ?, ?)").run(ownerId, name, sku, min_stock);
+      logAudit(user.id, user.name, 'CRIACAO_PRODUTO', `Produto criado: ${name} (SKU: ${sku})`);
       res.json({ id: info.lastInsertRowid });
     } catch (error: any) {
       console.error("Error creating product:", error);
@@ -552,7 +578,7 @@ export async function createApp() {
     }
   });
 
-  app.post("/api/transactions", authenticateToken, (req, res) => {
+  app.post("/api/transactions", authenticateToken, (req: AuthRequest, res) => {
     const { product_id, type, quantity, unit_cost, status, client_name, expiry_date } = req.body;
     
     try {
@@ -571,6 +597,9 @@ export async function createApp() {
           
           db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, amount_paid, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .run(product_id, type, quantity, unit_cost, product.average_cost, 'PAID', unit_cost * quantity, expiry_date || null);
+          
+          const user = req.user;
+          logAudit(user.id, user.name, 'ENTRADA_ESTOQUE', `Entrada de ${quantity} un. em ${product.name} (SKU: ${product.sku})`);
         } else {
           if (product.current_stock < quantity) throw new Error("Insufficient stock");
           const newTotalStock = product.current_stock - quantity;
@@ -582,6 +611,9 @@ export async function createApp() {
 
           db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, client_name, amount_paid, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
             .run(product_id, type, quantity, unit_cost, product.average_cost, status || 'PAID', client_name || null, initialPaid, expiry_date || null);
+          
+          const user = req.user;
+          logAudit(user.id, user.name, 'SAIDA_ESTOQUE', `Saída de ${quantity} un. em ${product.name} (SKU: ${product.sku}) - Cliente: ${client_name || 'N/A'}`);
         }
       })();
       res.json({ success: true });
@@ -593,7 +625,7 @@ export async function createApp() {
 
   app.get("/api/admin/users", (req, res) => {
     try {
-      const users = db.prepare("SELECT id, name, email, establishment_name, role, status, last_payment, plan, store_code FROM users WHERE role != 'admin'").all();
+      const users = db.prepare("SELECT id, name, email, establishment_name, role, status, last_payment, plan, store_code FROM users WHERE role != 'admin' ORDER BY name ASC").all();
       res.json(users);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -607,6 +639,7 @@ export async function createApp() {
         db.exec("DELETE FROM products");
         db.exec("DELETE FROM app_sales");
         db.exec("DELETE FROM users WHERE role != 'admin'");
+        logAudit(null, 'Admin', 'RESET_DB', 'Banco de dados resetado completamente pelo administrador');
       })();
       res.json({ success: true });
     } catch (error: any) {
@@ -618,6 +651,7 @@ export async function createApp() {
     try {
       const { id } = req.params;
       db.prepare("DELETE FROM users WHERE id = ? AND role != 'admin'").run(id);
+      logAudit(null, 'Admin', 'EXCLUSAO_USUARIO', `Usuário ID ${id} removido pelo administrador`);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -633,7 +667,7 @@ export async function createApp() {
       const newStatus = user.status === 'active' ? 'inactive' : 'active';
       db.prepare("UPDATE users SET status = ? WHERE id = ?").run(newStatus, id);
       res.json({ success: true, status: newStatus });
-      // O log será feito pelo admin (não temos o user do admin aqui no req sem middleware, mas podemos inferir ou passar)
+      logAudit(null, 'Admin', 'ALTERACAO_STATUS', `Status do usuário ID ${id} alterado para ${newStatus}`);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -653,6 +687,7 @@ export async function createApp() {
       db.transaction(() => {
         db.prepare("UPDATE users SET last_payment = ?, status = 'active' WHERE id = ?").run(today, id);
         db.prepare("INSERT INTO app_sales (user_id, amount) VALUES (?, ?)").run(id, finalAmount);
+        logAudit(null, 'Admin', 'PAGAMENTO_MANUAL', `Pagamento manual registrado para usuário ID ${id}: R$ ${finalAmount}`);
       })();
 
       res.json({ success: true, last_payment: today });

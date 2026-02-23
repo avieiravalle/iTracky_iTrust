@@ -70,6 +70,13 @@ export const AdminDashboard: React.FC = () => {
   React.useEffect(() => {
     if (isAuthorized) {
       fetchData();
+
+      // Polling: Atualiza a lista a cada 30 segundos para verificar novos cadastros
+      const interval = setInterval(() => {
+        fetchData();
+      }, 30000);
+
+      return () => clearInterval(interval);
     }
   }, [isAuthorized]);
 
