@@ -5,7 +5,10 @@ import {
   Plus,
   ShieldCheck,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Store,
+  LayoutDashboard,
+  DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, User, Stats, ProductStat, MonthlyStat, Receivable } from './types';
@@ -18,6 +21,7 @@ import { Financeiro } from './components/Financeiro';
 import { Manual } from './components/Manual';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Modals } from './components/Modals';
+import { POS } from './components/POS';
 import { PixPaymentModal } from './components/PixPaymentModal';
 
 export default function App() {
@@ -26,7 +30,8 @@ export default function App() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
-  const [screen, setScreen] = useState<'login' | 'register' | 'app' | 'admin'>('login');
+  const [screen, setScreen] = useState<'login' | 'register' | 'app' | 'admin' | 'mode_selection'>('login');
+  const [appMode, setAppMode] = useState<'full' | 'pos_finance'>('full');
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -41,7 +46,7 @@ export default function App() {
     start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState('');
@@ -195,7 +200,11 @@ export default function App() {
       setToken(data.token);
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userData', JSON.stringify(data.user));
-      setScreen('app');
+      if (data.user.role === 'gestor') {
+        setScreen('mode_selection');
+      } else {
+        setScreen('app');
+      }
       setLoginError('');
     } else {
       const err = await res.json();
@@ -291,7 +300,11 @@ export default function App() {
             setUser(userData);
             localStorage.setItem('userData', JSON.stringify(userData));
             // Se estiver na tela de login mas com token válido, vai para o app
-            if (screen === 'login') setScreen('app');
+            if (screen === 'login') {
+              // Se for gestor, manda escolher o modo, senão vai direto pro app
+              if (userData.role === 'gestor') setScreen('mode_selection');
+              else setScreen('app');
+            }
           } else {
             handleLogout(); // Token inválido ou expirado
           }
@@ -350,6 +363,50 @@ export default function App() {
     );
   }
 
+  if (screen === 'mode_selection') {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 transition-colors">
+        <div className="max-w-4xl w-full">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Bem-vindo, {user?.name}</h1>
+            <p className="text-gray-500 dark:text-gray-400">Como deseja acessar o sistema hoje?</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button
+              onClick={() => { setAppMode('full'); setScreen('app'); setActiveTab('dashboard'); }}
+              className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all group text-left"
+            >
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <LayoutDashboard size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Acesso Completo</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                Acesso a todos os módulos: Dashboard, Estoque, Relatórios, Financeiro e Configurações.
+              </p>
+            </button>
+
+            <button
+              onClick={() => { setAppMode('pos_finance'); setScreen('app'); setActiveTab('pdv'); }}
+              className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border-2 border-transparent hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all group text-left"
+            >
+              <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <div className="flex gap-1">
+                  <Store size={24} />
+                  <DollarSign size={24} />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Frente de Caixa & Financeiro</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                Modo focado em vendas e recebimentos. Interface simplificada para operação diária.
+              </p>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-[#1A1A1A] dark:text-white pb-20 md:pb-0 transition-colors">
       <Sidebar 
@@ -361,6 +418,7 @@ export default function App() {
         onShowAddProduct={() => setShowAddProduct(true)}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
+        appMode={appMode}
       />
 
       <main className="md:ml-64 p-4 md:p-8">
@@ -372,6 +430,7 @@ export default function App() {
                activeTab === 'informativo' ? 'Informativo de Lucros' :
                activeTab === 'financeiro' ? 'Gestão Financeira' :
                activeTab === 'manual' ? 'Manual de Instruções' :
+               activeTab === 'pdv' ? 'Frente de Caixa' :
                'Painel Administrativo'}
             </h2>
             <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">Bem-vindo ao seu painel de controle.</p>
@@ -441,6 +500,13 @@ export default function App() {
               />
             )}
             {activeTab === 'manual' && <Manual />}
+            {activeTab === 'pdv' && (
+              <POS 
+                products={products} 
+                user={user} 
+                onCheckoutComplete={fetchData} 
+              />
+            )}
             {activeTab === 'admin' && <AdminDashboard />}
           </motion.div>
         </AnimatePresence>

@@ -68,6 +68,7 @@ function runMigrations(database: Database.Database) {
       amount_paid REAL DEFAULT 0,
       expiry_date TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      payment_method TEXT,
       FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     );
 
@@ -103,6 +104,10 @@ function runMigrations(database: Database.Database) {
     }
     if (!tableInfo.some(col => col.name === 'parent_id')) {
       database.exec("ALTER TABLE users ADD COLUMN parent_id INTEGER");
+    }
+    const transactionInfo = database.prepare("PRAGMA table_info(transactions)").all() as any[];
+    if (!transactionInfo.some(col => col.name === 'payment_method')) {
+      database.exec("ALTER TABLE transactions ADD COLUMN payment_method TEXT");
     }
 
     // Ensure specific admin user exists
@@ -619,6 +624,57 @@ export async function createApp() {
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error processing transaction:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Rota de Checkout do PDV (Venda em Lote)
+  app.post("/api/pos/checkout", authenticateToken, (req: AuthRequest, res) => {
+    const { items, paymentMethod, clientName, status, amountPaid } = req.body; 
+    // items: [{ product_id, quantity, unit_price }]
+    
+    try {
+      const user = req.user;
+      const transactionStatus = status || 'PAID';
+      
+      db.transaction(() => {
+        let totalAmount = 0;
+        let remainingPayment = amountPaid !== undefined ? Number(amountPaid) : (transactionStatus === 'PAID' ? Infinity : 0);
+
+        for (const item of items) {
+          const product = db.prepare("SELECT * FROM products WHERE id = ?").get(item.product_id) as any;
+          if (!product) throw new Error(`Produto ID ${item.product_id} não encontrado`);
+          
+          if (product.current_stock < item.quantity) {
+            throw new Error(`Estoque insuficiente para ${product.name}`);
+          }
+
+          const newTotalStock = product.current_stock - item.quantity;
+          db.prepare("UPDATE products SET current_stock = ? WHERE id = ?").run(newTotalStock, item.product_id);
+
+          const itemTotal = item.unit_price * item.quantity;
+          totalAmount += itemTotal;
+
+          let itemAmountPaid = 0;
+          if (transactionStatus === 'PAID') {
+             itemAmountPaid = itemTotal;
+          } else {
+             itemAmountPaid = Math.min(itemTotal, remainingPayment);
+             remainingPayment = Math.max(0, remainingPayment - itemAmountPaid);
+          }
+
+          const finalPaymentMethod = itemAmountPaid > 0 ? paymentMethod : null;
+          const finalClientName = clientName || (transactionStatus === 'PENDING' ? 'Cliente não identificado' : 'Consumidor Final');
+
+          db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, client_name, amount_paid, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .run(item.product_id, 'EXIT', item.quantity, item.unit_price, product.average_cost, transactionStatus, finalClientName, itemAmountPaid, finalPaymentMethod);
+        }
+
+        logAudit(user.id, user.name, 'VENDA_PDV', `Venda PDV realizada (${transactionStatus}). Total: R$ ${totalAmount.toFixed(2)} - Itens: ${items.length}`);
+      })();
+
+      res.json({ success: true });
+    } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });

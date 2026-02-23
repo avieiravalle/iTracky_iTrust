@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share } from 'lucide-react';
+import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SidebarProps {
   user: User | null;
   activeTab: string;
-  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin') => void;
+  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv') => void;
   onLogout: () => void;
   onShowTransaction: (type: 'ENTRY' | 'EXIT') => void;
   onShowAddProduct: () => void;
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
+  appMode?: 'full' | 'pos_finance';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -22,7 +23,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onShowTransaction,
   onShowAddProduct,
   darkMode,
-  setDarkMode
+  setDarkMode,
+  appMode = 'full'
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -79,23 +81,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <nav className="space-y-1 flex-1">
+            {appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              >
+                <LayoutDashboard size={20} />
+                <span className="font-medium">Dashboard</span>
+              </button>
+            )}
+            {appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab('inventory')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              >
+                <Package size={20} />
+                <span className="font-medium">Inventário</span>
+              </button>
+            )}
             <button 
               type="button"
-              onClick={() => setActiveTab('dashboard')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              onClick={() => setActiveTab('pdv')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'pdv' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
             >
-              <LayoutDashboard size={20} />
-              <span className="font-medium">Dashboard</span>
+              <Store size={20} />
+              <span className="font-medium">Frente de Caixa</span>
             </button>
-            <button 
-              type="button"
-              onClick={() => setActiveTab('inventory')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
-            >
-              <Package size={20} />
-              <span className="font-medium">Inventário</span>
-            </button>
-            {user?.role !== 'colaborador' && (
+            {user?.role !== 'colaborador' && appMode === 'full' && (
               <>
                 <button 
                   type="button"
@@ -115,14 +129,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <DollarSign size={20} />
               <span className="font-medium">Financeiro</span>
             </button>
-            <button 
-              type="button"
-              onClick={() => setActiveTab('manual')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
-            >
-              <BookOpen size={20} />
-              <span className="font-medium">Ajuda/Manual</span>
-            </button>
+            {appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab('manual')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              >
+                <BookOpen size={20} />
+                <span className="font-medium">Ajuda/Manual</span>
+              </button>
+            )}
             {(installPrompt || isIos) && (
               <button 
                 type="button"
@@ -133,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-medium">Instalar App</span>
               </button>
             )}
-            {user?.role === 'admin' && (
+            {user?.role === 'admin' && appMode === 'full' && (
               <button 
                 type="button"
                 onClick={() => setActiveTab('admin')}
@@ -252,22 +268,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Bottom Navigation - Mobile Only */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border-t border-[#E5E7EB] dark:border-zinc-800 z-20 flex justify-around items-center px-2 py-3 md:hidden transition-colors safe-area-bottom">
-        <button 
-          type="button"
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'dashboard' ? 'text-black dark:text-white' : 'text-gray-400'}`}
-        >
-          <LayoutDashboard size={22} className={activeTab === 'dashboard' ? 'scale-110' : ''} />
-          <span className="text-[10px] font-bold uppercase tracking-tighter">Home</span>
-        </button>
+        {appMode === 'full' && (
+          <button 
+            type="button"
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'dashboard' ? 'text-black dark:text-white' : 'text-gray-400'}`}
+          >
+            <LayoutDashboard size={22} className={activeTab === 'dashboard' ? 'scale-110' : ''} />
+            <span className="text-[10px] font-bold uppercase tracking-tighter">Home</span>
+          </button>
+        )}
         
+        {appMode === 'full' && (
+          <button 
+            type="button"
+            onClick={() => setActiveTab('inventory')}
+            className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'inventory' ? 'text-black dark:text-white' : 'text-gray-400'}`}
+          >
+            <Package size={22} className={activeTab === 'inventory' ? 'scale-110' : ''} />
+            <span className="text-[10px] font-bold uppercase tracking-tighter">Estoque</span>
+          </button>
+        )}
+
         <button 
           type="button"
-          onClick={() => setActiveTab('inventory')}
-          className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'inventory' ? 'text-black dark:text-white' : 'text-gray-400'}`}
+          onClick={() => setActiveTab('pdv')}
+          className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'pdv' ? 'text-black dark:text-white' : 'text-gray-400'}`}
         >
-          <Package size={22} className={activeTab === 'inventory' ? 'scale-110' : ''} />
-          <span className="text-[10px] font-bold uppercase tracking-tighter">Estoque</span>
+          <Store size={22} className={activeTab === 'pdv' ? 'scale-110' : ''} />
+          <span className="text-[10px] font-bold uppercase tracking-tighter">PDV</span>
         </button>
 
         <div className="relative -mt-10 flex-1 flex justify-center">
@@ -289,14 +318,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="text-[10px] font-bold uppercase tracking-tighter">Contas</span>
         </button>
 
-        <button 
-          type="button"
-          onClick={() => setActiveTab('manual')}
-          className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'manual' ? 'text-black dark:text-white' : 'text-gray-400'}`}
-        >
-          <BookOpen size={22} className={activeTab === 'manual' ? 'scale-110' : ''} />
-          <span className="text-[10px] font-bold uppercase tracking-tighter">Ajuda</span>
-        </button>
+        {appMode === 'full' && (
+          <button 
+            type="button"
+            onClick={() => setActiveTab('manual')}
+            className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'manual' ? 'text-black dark:text-white' : 'text-gray-400'}`}
+          >
+            <BookOpen size={22} className={activeTab === 'manual' ? 'scale-110' : ''} />
+            <span className="text-[10px] font-bold uppercase tracking-tighter">Ajuda</span>
+          </button>
+        )}
         {user?.role === 'admin' && (
           <button 
             type="button"
