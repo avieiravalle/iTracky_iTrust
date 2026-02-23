@@ -13,10 +13,14 @@ interface AuthRequest extends Request {
   user?: any;
 }
 
+// Definição de __dirname para ES Modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export function getDb() {
   if (!db) {
     const isTest = process.env.NODE_ENV === 'test' || process.env.CYPRESS_TEST === 'true';
-    db = new Database(isTest ? ":memory:" : "inventory.db");
+    const dbPath = isTest ? ":memory:" : path.join(__dirname, "inventory.db");
+    db = new Database(dbPath);
     db.exec("PRAGMA foreign_keys = ON;");
   }
   return db;
@@ -127,7 +131,7 @@ export function initDb() {
       console.warn("Database corrupted. Recreating...");
       closeDb();
       const isTest = process.env.NODE_ENV === 'test' || process.env.CYPRESS_TEST === 'true';
-      const dbPath = isTest ? ":memory:" : "inventory.db";
+      const dbPath = isTest ? ":memory:" : path.join(__dirname, "inventory.db");
       if (dbPath !== ":memory:" && fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath);
       }
@@ -701,10 +705,11 @@ export async function createApp() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(process.cwd(), "dist")));
+  } else {
+    // Em produção (Locaweb), serve os arquivos estáticos da pasta dist
+    app.use(express.static(path.join(__dirname, "dist")));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(process.cwd(), "dist/index.html"));
+      res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
 

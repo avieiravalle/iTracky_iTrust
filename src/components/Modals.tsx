@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface ModalsProps {
   showAddProduct: boolean;
@@ -28,21 +29,104 @@ export const Modals: React.FC<ModalsProps> = ({
   const [nameError, setNameError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState('PAID');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [searchSku, setSearchSku] = useState('');
+  const [prefilledSku, setPrefilledSku] = useState('');
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
     if (!showAddProduct) {
-      setSku('');
+      if (!prefilledSku) setSku('');
       setSkuError('');
       setName('');
       setNameError('');
+    } else if (prefilledSku) {
+      setSku(prefilledSku);
+      setPrefilledSku('');
     }
-  }, [showAddProduct]);
+  }, [showAddProduct, prefilledSku]);
 
   useEffect(() => {
     if (showTransaction) {
       setTransactionStatus('PAID');
+      setSelectedProductId(showTransaction.productId ? showTransaction.productId.toString() : '');
+      setSearchSku('');
+      setIsScanning(false);
     }
   }, [showTransaction]);
+
+  // Lógica do Scanner de Câmera
+  useEffect(() => {
+    if (isScanning && showTransaction && !scannerRef.current) {
+      const scanner = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+      );
+      scannerRef.current = scanner;
+
+      scanner.render(
+        (decodedText) => {
+          handleProductFound(decodedText);
+          scanner.clear();
+          setIsScanning(false);
+          scannerRef.current = null;
+        },
+        (error) => {
+          // console.warn(error);
+        }
+      );
+    }
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(console.error);
+        scannerRef.current = null;
+      }
+    };
+  }, [isScanning, products, showTransaction]);
+
+  const handleProductFound = (skuCode: string) => {
+    const product = products.find(p => p.sku.toLowerCase() === skuCode.toLowerCase());
+    
+    if (product) {
+      setSelectedProductId(product.id.toString());
+      setSearchSku(product.sku);
+    } else {
+      if (showTransaction?.type === 'ENTRY') {
+        if (window.confirm(`Produto com SKU "${skuCode}" não encontrado. Deseja cadastrá-lo agora?`)) {
+          setPrefilledSku(skuCode);
+          setShowTransaction(null);
+          setShowAddProduct(true);
+        }
+      } else {
+        alert(`Produto com SKU "${skuCode}" não encontrado no estoque.`);
+      }
+    }
+  };
+
+  // Lógica do Leitor USB (Input de Texto)
+  const handleSkuSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchSku(val);
+    
+    // Tenta encontrar o produto exato enquanto digita (ou quando o leitor USB cola o texto)
+    const product = products.find(p => p.sku.toLowerCase() === val.toLowerCase());
+    if (product) {
+      setSelectedProductId(product.id.toString());
+    }
+  };
+
+  const handleManualProductSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    setSelectedProductId(val);
+    if (!val) setSearchSku('');
+    else {
+      const p = products.find(prod => prod.id.toString() === val);
+      if (p) setSearchSku(p.sku);
+    }
+  };
 
   const handleSkuChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -150,12 +234,56 @@ export const Modals: React.FC<ModalsProps> = ({
               Registrar {showTransaction.type === 'ENTRY' ? 'Entrada' : 'Saída'}
             </h3>
             <form onSubmit={handleTransactionSubmit} className="space-y-4">
+              
+              {/* Área de Scanner */}
+              <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-100 dark:border-zinc-700">
+                <div className="flex items-center gap-2 mb-3">
+                  <ScanBarcode className="text-blue-500" size={20} />
+                  <span className="text-xs font-bold text-gray-500 uppercase">Scanner / Leitor USB</span>
+                </div>
+                
+                {isScanning ? (
+                  <div className="relative">
+                    <div id="reader" className="w-full rounded-lg overflow-hidden min-h-[300px] bg-black"></div>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsScanning(false)}
+                      className="absolute top-2 right-2 bg-white/80 p-1 rounded-full text-gray-600 hover:text-red-500 z-10"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={searchSku}
+                      onChange={handleSkuSearchChange}
+                      onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleProductFound(searchSku); } }}
+                      placeholder="Bipe o código ou digite SKU..." 
+                      className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white"
+                      autoFocus 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setIsScanning(true)}
+                      className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      title="Abrir Câmera"
+                    >
+                      <Camera size={20} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Produto</label>
-                <select name="product_id" data-testid="select-product" required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
+                <select name="product_id" data-testid="select-product" required value={selectedProductId} onChange={handleManualProductSelect} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
                   <option value="">Selecione um produto...</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} (SKU: {p.sku})</option>
+                    <option key={p.id} value={p.id}>
+                      {p.name} (SKU: {p.sku}) {showTransaction.type === 'EXIT' ? `- Est: ${p.current_stock}` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
