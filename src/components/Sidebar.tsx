@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight } from 'lucide-react';
+import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -10,6 +10,7 @@ interface SidebarProps {
   onLogout: () => void;
   onShowTransaction: (type: 'ENTRY' | 'EXIT') => void;
   onShowAddProduct: () => void;
+  onShowReportModal: () => void;
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
   appMode?: 'full' | 'pos_finance';
@@ -23,6 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onShowTransaction,
   onShowAddProduct,
+  onShowReportModal,
   darkMode,
   setDarkMode,
   appMode = 'full',
@@ -123,6 +125,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </>
             )}
+            {user?.role === 'gestor' && appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={onShowReportModal}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+              >
+                <FileText size={20} />
+                <span className="font-medium">Relatório</span>
+              </button>
+            )}
             <button 
               type="button"
               onClick={() => setActiveTab('financeiro')}
@@ -211,7 +223,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <X size={20} />
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid ${user?.role === 'gestor' ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
+                {user?.role === 'gestor' && (
+                  <button 
+                    type="button"
+                    onClick={() => { onShowReportModal(); setShowMobileMenu(false); }}
+                    className="flex flex-col items-center gap-3 p-6 bg-blue-50 dark:bg-blue-500/10 text-blue-600 rounded-3xl transition-all active:scale-95 border border-blue-100 dark:border-blue-500/20"
+                  >
+                    <div className="w-12 h-12 bg-blue-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                      <FileText size={28} />
+                    </div>
+                    <div className="text-center">
+                      <span className="block text-sm font-bold">Relatório</span>
+                      <span className="text-[10px] opacity-60 uppercase tracking-tighter">Período</span>
+                    </div>
+                  </button>
+                )}
                 <button 
                   type="button"
                   onClick={() => { onShowTransaction('ENTRY'); setShowMobileMenu(false); }}
@@ -241,7 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button 
                   type="button"
                   onClick={() => { onShowAddProduct(); setShowMobileMenu(false); }}
-                  className="col-span-2 flex items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 rounded-3xl transition-all active:scale-95 border border-gray-200 dark:border-zinc-700"
+                  className={`flex items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 rounded-3xl transition-all active:scale-95 border border-gray-200 dark:border-zinc-700 ${user?.role === 'gestor' ? 'col-span-3' : 'col-span-2'}`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center">
@@ -257,8 +284,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {(installPrompt || isIos) && (
                   <button 
                     type="button"
-                    onClick={() => { installPrompt ? handleInstall() : setShowIosInstructions(true); setShowMobileMenu(false); }}
-                    className="col-span-2 flex items-center justify-center gap-2 p-4 mt-2 text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-500/10 rounded-3xl border border-emerald-100 dark:border-emerald-500/20 active:scale-95 transition-all hover:bg-emerald-100 dark:hover:bg-emerald-500/20"
+                    onClick={() => { installPrompt ? handleInstall() : setShowIosInstructions(true); setShowMobileMenu(false); }}                    className={`flex items-center justify-center gap-2 p-4 mt-2 text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-500/10 rounded-3xl border border-emerald-100 dark:border-emerald-500/20 active:scale-95 transition-all hover:bg-emerald-100 dark:hover:bg-emerald-500/20 ${user?.role === 'gestor' ? 'col-span-3' : 'col-span-2'}`}
                   >
                     <Download size={20} />
                     <span>Instalar Aplicativo</span>
@@ -267,8 +293,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {user?.role === 'gestor' && onSwitchMode && (
                   <button 
                     type="button"
-                    onClick={() => { onSwitchMode(); setShowMobileMenu(false); }}
-                    className="col-span-2 flex items-center justify-center gap-2 p-4 mt-2 text-gray-600 font-bold bg-gray-50 dark:bg-zinc-800 rounded-3xl border border-gray-200 dark:border-zinc-700 active:scale-95 transition-all"
+                    onClick={() => { onSwitchMode(); setShowMobileMenu(false); }}                    className="col-span-3 flex items-center justify-center gap-2 p-4 mt-2 text-gray-600 font-bold bg-gray-50 dark:bg-zinc-800 rounded-3xl border border-gray-200 dark:border-zinc-700 active:scale-95 transition-all"
                   >
                     <ArrowLeftRight size={20} />
                     <span>Trocar Modo de Acesso</span>
@@ -276,8 +301,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
                 <button 
                   type="button"
-                  onClick={() => { setShowLogoutConfirmation(true); setShowMobileMenu(false); }}
-                  className="col-span-2 flex items-center justify-center gap-2 p-4 mt-2 text-rose-600 font-bold bg-rose-50 dark:bg-rose-500/10 rounded-3xl border border-rose-100 dark:border-rose-500/20 active:scale-95 transition-all hover:bg-rose-100 dark:hover:bg-rose-500/20"
+                  onClick={() => { setShowLogoutConfirmation(true); setShowMobileMenu(false); }}                  className={`flex items-center justify-center gap-2 p-4 mt-2 text-rose-600 font-bold bg-rose-50 dark:bg-rose-500/10 rounded-3xl border border-rose-100 dark:border-rose-500/20 active:scale-95 transition-all hover:bg-rose-100 dark:hover:bg-rose-500/20 ${user?.role === 'gestor' ? 'col-span-3' : 'col-span-2'}`}
                 >
                   <ArrowUpCircle size={20} className="rotate-90" />
                   <span>Sair do Sistema</span>

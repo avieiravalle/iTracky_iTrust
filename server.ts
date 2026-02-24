@@ -810,6 +810,101 @@ export async function createApp() {
     }
   });
 
+  app.get("/api/reports/period-summary", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+      const { startDate, endDate } = req.query;
+  
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: "As datas de início e fim são obrigatórias." });
+      }
+  
+      const fullEndDate = `${endDate} 23:59:59`;
+  
+      // 1. Visão Financeira e Movimentação de Saídas
+      const salesSummary = db.prepare(`
+        SELECT
+          COALESCE(SUM(t.unit_cost * t.quantity), 0) as totalRevenue,          -- Faturamento Bruto
+          COALESCE(SUM(t.amount_paid), 0) as totalReceived,                   -- Recebimentos
+          COALESCE(SUM(t.cost_at_transaction * t.quantity), 0) as cmv,        -- Custo da Mercadoria Vendida
+          COUNT(t.id) as totalSalesTransactions,
+          COALESCE(SUM(t.quantity), 0) as exitsQuantity                      -- Total de Saídas (Qtd)
+        FROM transactions t
+        JOIN products p ON t.product_id = p.id
+        WHERE p.user_id = ? AND t.type = 'EXIT' AND t.timestamp BETWEEN ? AND ?
+      `).get(ownerId, startDate, fullEndDate) as any;
+  
+      // 2. Movimentação de Entradas (Contas a Pagar do período)
+      const entriesSummary = db.prepare(`
+        SELECT
+          COALESCE(SUM(t.unit_cost * t.quantity), 0) as accountsPayable,      -- Contas a Pagar (Valor)
+          COALESCE(SUM(t.quantity), 0) as entriesQuantity                    -- Total de Entradas (Qtd)
+        FROM transactions t
+        JOIN products p ON t.product_id = p.id
+        WHERE p.user_id = ? AND t.type = 'ENTRY' AND t.timestamp BETWEEN ? AND ?
+      `).get(ownerId, startDate, fullEndDate) as any;
+  
+      // 3. Itens com Estoque Crítico (Snapshot atual)
+      const criticalStockItems = db.prepare(`
+        SELECT name, sku, current_stock, min_stock
+        FROM products
+        WHERE user_id = ? AND current_stock <= min_stock
+        ORDER BY (current_stock - min_stock) ASC
+        LIMIT 10
+      `).all(ownerId);
+  
+      // 4. Produto Carro-Chefe (por quantidade vendida no período)
+      const leadProduct = db.prepare(`
+        SELECT p.name, p.sku, SUM(t.quantity) as quantitySold
+        FROM transactions t
+        JOIN products p ON t.product_id = p.id
+        WHERE p.user_id = ? AND t.type = 'EXIT' AND t.timestamp BETWEEN ? AND ?
+        GROUP BY p.id
+        ORDER BY quantitySold DESC
+        LIMIT 1
+      `).get(ownerId, startDate, fullEndDate);
+  
+      // Cálculos de KPIs
+      const grossProfit = salesSummary.totalRevenue - salesSummary.cmv;
+      const netBalance = salesSummary.totalReceived - entriesSummary.accountsPayable;
+      const contributionMargin = salesSummary.totalRevenue > 0 ? (grossProfit / salesSummary.totalRevenue) * 100 : 0;
+      const averageTicket = salesSummary.totalSalesTransactions > 0 ? salesSummary.totalRevenue / salesSummary.totalSalesTransactions : 0;
+  
+      logAudit(user.id, user.name, 'GERACAO_RELATORIO', `Relatório gerado para o período: ${startDate} a ${endDate}`);
+  
+      res.json({
+        financial: {
+          totalRevenue: salesSummary.totalRevenue,
+          totalReceived: salesSummary.totalReceived,
+          accountsPayable: entriesSummary.accountsPayable,
+          netBalance: netBalance,
+        },
+        inventory: {
+          entriesValue: entriesSummary.accountsPayable,
+          entriesQuantity: entriesSummary.entriesQuantity,
+          exitsQuantity: salesSummary.exitsQuantity,
+          cmv: salesSummary.cmv,
+          criticalStockItems: criticalStockItems,
+        },
+        performance: {
+          averageTicket: averageTicket,
+          leadProduct: leadProduct || { name: 'N/A', quantitySold: 0 },
+          contributionMargin: contributionMargin,
+          totalSalesTransactions: salesSummary.totalSalesTransactions,
+        },
+        period: {
+          start: startDate,
+          end: endDate,
+          generatedAt: new Date().toISOString()
+        },
+        storeName: user.establishment_name || 'Minha Loja'
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test") {
     const { createServer } = await import("vite");

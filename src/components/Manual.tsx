@@ -11,7 +11,8 @@ import {
   HelpCircle,
   CheckCircle2,
   Clock,
-  ScanBarcode
+  ScanBarcode,
+  FileText
 } from 'lucide-react';
 
 export const Manual: React.FC = () => {
@@ -35,6 +36,11 @@ export const Manual: React.FC = () => {
       title: 'Informativo de Lucros',
       icon: <TrendingUp className="text-emerald-500" size={24} />,
       content: 'Análise detalhada por produto. Veja quais itens trazem mais lucro total e qual a margem média por unidade vendida. Ideal para identificar seus "campeões de venda".'
+    },
+    {
+      title: 'Relatório de Fechamento',
+      icon: <FileText className="text-blue-500" size={24} />,
+      content: 'Gere um relatório completo para qualquer período. Selecione as datas de início e fim para visualizar um resumo detalhado de faturamento, custos, lucro, produtos mais vendidos e mais. Você pode imprimir ou salvar como PDF.'
     },
     {
       title: 'Gestão Financeira',

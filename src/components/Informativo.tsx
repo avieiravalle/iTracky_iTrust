@@ -9,15 +9,17 @@ import {
   ResponsiveContainer, 
   Cell 
 } from 'recharts';
-import { ProductStat } from '../types';
+import { ProductStat, User } from '../types';
 import { TrendingUp, DollarSign, Package } from 'lucide-react';
 import { formatBRL } from '../utils/format';
+import { PeriodClosingReport } from './PeriodClosingReport';
 
 interface InformativoProps {
   productStats: ProductStat[];
+  user: User | null;
 }
 
-export const Informativo: React.FC<InformativoProps> = ({ productStats }) => {
+export const Informativo: React.FC<InformativoProps> = ({ productStats, user }) => {
   const chartData = productStats.slice(0, 5).map(stat => ({
     name: stat.name,
     profit: stat.profit

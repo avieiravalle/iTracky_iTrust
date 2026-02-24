@@ -49,6 +49,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -430,6 +431,7 @@ export default function App() {
         setActiveTab={setActiveTab} 
         onLogout={handleLogout}
         onShowTransaction={(type) => setShowTransaction({ type })}
+        onShowReportModal={() => setShowReportModal(true)}
         onShowAddProduct={() => setShowAddProduct(true)}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
@@ -536,6 +538,8 @@ export default function App() {
         setShowAddProduct={setShowAddProduct}
         showTransaction={showTransaction}
         setShowTransaction={setShowTransaction}
+        showReportModal={showReportModal}
+        setShowReportModal={setShowReportModal}
         products={products}
         onAddProduct={handleAddProduct}
         onTransaction={handleTransaction}

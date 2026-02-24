@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
-import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X, Search } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X, Search, FileText } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { PeriodClosingReport } from './PeriodClosingReport';
 
 interface ModalsProps {
   showAddProduct: boolean;
   setShowAddProduct: (show: boolean) => void;
   showTransaction: { type: 'ENTRY' | 'EXIT', productId?: number } | null;
   setShowTransaction: (val: { type: 'ENTRY' | 'EXIT', productId?: number } | null) => void;
+  showReportModal: boolean;
+  setShowReportModal: (show: boolean) => void;
   products: Product[];
   onAddProduct: (data: { name: string, sku: string, min_stock: number }) => Promise<void> | void;
   onTransaction: (e: React.FormEvent<HTMLFormElement>) => Promise<void> | void;
@@ -19,6 +22,8 @@ export const Modals: React.FC<ModalsProps> = ({
   setShowAddProduct,
   showTransaction,
   setShowTransaction,
+  showReportModal,
+  setShowReportModal,
   products,
   onAddProduct,
   onTransaction
@@ -413,6 +418,29 @@ export const Modals: React.FC<ModalsProps> = ({
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-t-[2.5rem] md:rounded-3xl p-8 shadow-2xl transition-colors max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold dark:text-white">Gerar Relatório de Período</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowReportModal(false)}
+                className="p-2 bg-gray-100 dark:bg-zinc-800 rounded-full text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <PeriodClosingReport />
           </motion.div>
         </div>
       )}

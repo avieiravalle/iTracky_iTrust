@@ -297,6 +297,23 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - O gráfico é atualizado para refletir os dados do período selecionado.
   - Os valores no gráfico correspondem aos lucros das transações 'EXIT' no período.
 
+### Cenário 6.4: Geração de Relatório de Fechamento de Período
+- **Descrição**: Um gestor gera um relatório em PDF para um período específico.
+- **Passos**:
+  1. Fazer login como Gestor.
+  2. Registrar algumas vendas pagas (`PAID`) e pendentes (`PENDING`) em um intervalo de datas específico (ex: 01/03 a 15/03).
+  3. Registrar algumas entradas de estoque (`ENTRY`) no mesmo período.
+  4. Acessar o menu de ações e clicar em "Relatório" (ou no item de menu na versão web).
+  5. No modal, selecionar as datas de início (01/03) e fim (15/03).
+  5. Clicar no botão "Gerar Relatório".
+- **Validações E2E**:
+  - Um modal é exibido com o título "Relatório de Fechamento de Período".
+  - Os valores de "Faturamento Bruto", "Recebimentos", "Contas a Pagar" e "Saldo Líquido" correspondem aos cálculos corretos das transações do período.
+  - A seção "Movimentação de Estoque" reflete os totais de entradas, saídas e CMV.
+  - A seção "KPIs de Performance" exibe o Ticket Médio, o Produto Carro-Chefe e a Margem de Contribuição calculados corretamente.
+  - Clicar no botão "Imprimir / Salvar PDF" abre a caixa de diálogo de impressão do navegador.
+  - O modal pode ser fechado.
+
 ---
 
 ## 7. Testes de Funcionalidades Administrativas (Apenas para Admin)
