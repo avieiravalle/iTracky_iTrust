@@ -1,18 +1,47 @@
-<div align="center">
+# Sistema de Controle de Estoque & PDV
 
-# Run and deploy your AI Studio app
+Sistema completo para gestão de estoque, frente de caixa (PDV) e controle financeiro, desenvolvido com React e TypeScript. Focado em agilidade para pequenos e médios comércios.
 
-This contains everything you need to run your app locally.
+## 🚀 Funcionalidades Principais
 
-View your app in AI Studio: https://ai.studio/apps/40956b4b-7230-4696-9081-ad34aa78e91d
+- **Dashboard Interativo**:
+  - Visão geral do patrimônio em estoque.
+  - Gráficos de evolução de lucro (Diário, Semanal, Mensal).
+  - Alertas automáticos de estoque baixo.
 
-## Run Locally
+- **Gestão de Inventário**:
+  - Cadastro de produtos com SKU, preço de custo e validade.
+  - Cálculo automático de custo médio.
+  - Scanner de código de barras via câmera ou leitor USB.
 
-**Prerequisites:**  Node.js
+- **Frente de Caixa (PDV)**:
+  - Interface otimizada para vendas rápidas.
+  - Suporte a atalhos de teclado (F2 Buscar, F10 Finalizar).
+  - Múltiplos métodos de pagamento (Dinheiro, PIX, Cartão).
+  - Gestão de vendas "A Receber" (Fiado) com identificação de cliente.
 
+- **Financeiro**:
+  - Controle de contas a receber.
+  - Registro de pagamentos parciais.
+  - Relatórios de lucratividade por produto.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🛠️ Tecnologias Utilizadas
+
+- **Core**: React 18, TypeScript, Vite
+- **Estilização**: Tailwind CSS
+- **UI/UX**: Lucide React (Ícones), Framer Motion (Animações)
+- **Dados**: Recharts (Gráficos)
+
+## 📦 Como Rodar o Projeto
+
+1. Instale as dependências:
+   ```bash
+   npm install
+   ```
+
+2. Inicie o servidor de desenvolvimento:
+   ```bash
+   npm run dev
+   ```
+
+3. O projeto estará rodando em: `http://localhost:5173`
