@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { User, Product, Stats, MonthlyStat } from './src/types';
 import { Box, AlertTriangle, TrendingUp, ArrowRight } from 'lucide-react';
 import { formatBRL } from './src/utils/format';
@@ -13,19 +14,23 @@ interface DashboardProps {
   setCustomDateRange?: any;
   darkMode?: boolean;
   onViewFinanceiro?: () => void;
+  onViewInventory?: () => void;
 }
 
-export function Dashboard({ user, products = [], stats }: DashboardProps) {
-  // Cálculos para os Cards
-  const totalStock = products.reduce((acc, p) => acc + p.current_stock, 0);
-  const lowStockCount = products.filter(p => p.current_stock <= p.min_stock).length;
-  const recentProducts = products.slice(0, 5); // Pegar os 5 primeiros para a tabela
+export function Dashboard({ user, products = [], stats, onViewInventory }: DashboardProps) {
+  // Cálculos para os Cards com useMemo para otimização
+  const totalStock = useMemo(() => products.reduce((acc, p) => acc + p.current_stock, 0), [products]);
+  const lowStockCount = useMemo(() => products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).length, [products]);
+  
+  // A ordenação por data de criação seria mais precisa, mas slice(0,5) é um bom placeholder.
+  // Se os produtos forem retornados já ordenados do backend, isso funciona bem.
+  const recentProducts = useMemo(() => products.slice(0, 5), [products]);
 
   return (
     <div className="space-y-8 p-4 md:p-8">
       
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Card 1: Total em Estoque */}
         <div className="bg-white dark:bg-[#1e293b] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4">
           <div className="w-14 h-14 bg-[#1A3A5F] rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
@@ -64,7 +69,10 @@ export function Dashboard({ user, products = [], stats }: DashboardProps) {
       <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
           <h3 className="font-bold text-lg text-[#2D3436] dark:text-white">Inventário Recente</h3>
-          <button className="text-[#00D4FF] text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all">
+          <button 
+            onClick={onViewInventory}
+            className="text-[#00D4FF] text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all"
+          >
             Ver Tudo <ArrowRight size={16} />
           </button>
         </div>
@@ -83,7 +91,7 @@ export function Dashboard({ user, products = [], stats }: DashboardProps) {
                 <td className="px-6 py-4 font-medium text-[#2D3436] dark:text-white">{p.name}</td>
                 <td className="px-6 py-4 text-gray-500 font-mono text-sm">{p.sku}</td>
                 <td className="px-6 py-4 font-bold">{p.current_stock}</td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-4 whitespace-nowrap">
                   {p.current_stock <= p.min_stock ? (
                     <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">Baixo</span>
                   ) : (

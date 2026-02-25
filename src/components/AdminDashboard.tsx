@@ -14,9 +14,18 @@ import {
   Clock,
   Eye,
   EyeOff,
-  FileText
+  FileText,
+  Store
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { 
+  PieChart, 
+  Pie, 
+  Cell, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
 import { Client, AppSale } from '../types';
 import { formatBRL } from '../utils/format';
 
@@ -243,6 +252,8 @@ export const AdminDashboard: React.FC = () => {
     (filterStatus === 'all' || (filterStatus === 'pending' && c.status === 'pending'))
   );
 
+  const storeCount = filteredClients.filter(c => c.role === 'gestor').length;
+
   const filteredSales = sales.filter(s => 
     s.client_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -271,18 +282,35 @@ export const AdminDashboard: React.FC = () => {
     return a.localeCompare(b);
   });
 
+  // Data for Plan Distribution Chart
+  const planDistribution = clients
+    .filter(c => c.role === 'gestor')
+    .reduce((acc, client) => {
+      let planName = client.plan || 'Básico';
+      if (planName === 'Basic') planName = 'Básico'; // Normalize
+      acc[planName] = (acc[planName] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const planChartData = Object.keys(planDistribution).map(key => ({ name: key, value: planDistribution[key] }));
+  const PLAN_COLORS: Record<string, string> = {
+    'Básico': '#3b82f6', // blue-500
+    'Profissional': '#8b5cf6', // purple-500
+    'Empresarial': '#10b981', // emerald-500
+  };
+
   return (
     <div className="space-y-8 pb-12">
       {/* Resumo Admin */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
           <div className="flex items-center gap-3 text-blue-500 mb-4">
-            <Users size={24} />
-            <h3 className="font-bold text-lg dark:text-white">Total de Clientes</h3>
+            <Store size={24} />
+            <h3 className="font-bold text-lg dark:text-white">Total de Lojas</h3>
           </div>
-          <p className="text-3xl font-bold dark:text-white">{filteredClients.length}</p>
+          <p className="text-3xl font-bold dark:text-white">{storeCount}</p>
           <p className="text-xs text-gray-400 mt-2 uppercase tracking-wider">
-            {searchTerm ? 'Resultados da busca' : 'Usuários ativos no sistema'}
+            {searchTerm ? 'Lojas na busca' : 'Lojas ativas no sistema'}
           </p>
         </div>
 
@@ -304,6 +332,44 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <p className="text-3xl font-bold text-amber-500">{filteredClients.filter(c => c.status === 'pending').length}</p>
           <p className="text-xs text-gray-400 mt-2 uppercase tracking-wider">Aguardando confirmação</p>
+        </div>
+      </div>
+
+      {/* Gráfico de Distribuição de Planos */}
+      <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
+        <h3 className="font-bold text-lg dark:text-white mb-4">Distribuição por Plano</h3>
+        <div className="h-72 w-full">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                data={planChartData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                labelLine={false}
+                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                  const RADIAN = Math.PI / 180;
+                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  if (percent < 0.05) return null;
+                  return (
+                    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize="12px" fontWeight="bold">
+                      {`${(percent * 100).toFixed(0)}%`}
+                    </text>
+                  );
+                }}
+              >
+                {planChartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={PLAN_COLORS[entry.name] || '#8884d8'} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => [`${value} lojas`, 'Lojas']} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 
 const DB_FILE = 'inventory.db';
@@ -8,40 +8,49 @@ const rootDir = process.cwd();
 const dbPath = path.join(rootDir, DB_FILE);
 const backupDir = path.join(rootDir, BACKUP_DIR);
 
+async function cleanupOldBackups() {
+  try {
+    const files = (await fs.readdir(backupDir))
+      .filter(f => f.startsWith('inventory-') && f.endsWith('.db'))
+      .map(async f => {
+        const stats = await fs.stat(path.join(backupDir, f));
+        return { name: f, time: stats.mtime.getTime() };
+      });
+    
+    const sortedFiles = (await Promise.all(files)).sort((a, b) => b.time - a.time);
+
+    if (sortedFiles.length > 10) {
+      const filesToDelete = sortedFiles.slice(10);
+      for (const file of filesToDelete) {
+        await fs.unlink(path.join(backupDir, file.name));
+        console.log(`[Backup] Backup antigo removido: ${file.name}`);
+      }
+    }
+  } catch (error) {
+    console.error('[Backup] Erro ao limpar backups antigos:', error);
+  }
+}
+
 async function runBackup() {
-  // Verifica se o banco de dados existe
-  if (!fs.existsSync(dbPath)) {
-    console.log(`[Backup] Banco de dados não encontrado em ${dbPath}. Ignorando backup inicial.`);
+  try {
+    // Verifica se o banco de dados existe
+    await fs.access(dbPath);
+  } catch {
+    console.log(`[Backup] Banco de dados não encontrado em ${dbPath}. Ignorando backup.`);
     return;
   }
 
-  // Cria a pasta de backups se não existir
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
-  }
-
-  // Gera nome do arquivo com timestamp (ex: inventory-2023-10-25T10-00-00-000Z.db)
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupFile = path.join(backupDir, `inventory-${timestamp}.db`);
-
   try {
-    fs.copyFileSync(dbPath, backupFile);
+    await fs.mkdir(backupDir, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFile = path.join(backupDir, `inventory-${timestamp}.db`);
+
+    await fs.copyFile(dbPath, backupFile);
     console.log(`[Backup] Backup realizado com sucesso: ${backupFile}`);
 
-    // Limpeza: Manter apenas os 10 últimos backups para economizar espaço
-    const files = fs.readdirSync(backupDir)
-      .filter(f => f.startsWith('inventory-') && f.endsWith('.db'))
-      .map(f => ({ name: f, time: fs.statSync(path.join(backupDir, f)).mtime.getTime() }))
-      .sort((a, b) => b.time - a.time); // Ordena do mais novo para o mais antigo
-
-    if (files.length > 10) {
-      files.slice(10).forEach(file => {
-        fs.unlinkSync(path.join(backupDir, file.name));
-        console.log(`[Backup] Backup antigo removido: ${file.name}`);
-      });
-    }
+    await cleanupOldBackups();
   } catch (error) {
-    console.error('[Backup] Erro ao realizar backup:', error);
+    console.error('[Backup] Falha ao realizar o backup:', error);
   }
 }
 

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Package, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, UserPlus, Users, ArrowLeft, KeyRound } from 'lucide-react';
 import { motion } from 'motion/react';
+import { PlanSelection, Plan } from './PlanSelection';
+import { PixPaymentModal } from './PixPaymentModal';
 
 interface AuthProps {
   screen: 'login' | 'register';
   setScreen: (screen: 'login' | 'register') => void;
   onLogin: (e: React.FormEvent<HTMLFormElement>) => void;
-  onRegister: (e: React.FormEvent<HTMLFormElement>) => void;
   onClearError?: () => void;
   onAdminClick?: () => void;
   registeredEmail?: string;
@@ -17,7 +18,6 @@ export const Auth: React.FC<AuthProps> = ({
   screen, 
   setScreen, 
   onLogin, 
-  onRegister,
   onClearError,
   onAdminClick,
   registeredEmail = '',
@@ -40,6 +40,11 @@ export const Auth: React.FC<AuthProps> = ({
   // Password Recovery State
   const [authMode, setAuthMode] = useState<'default' | 'forgot' | 'reset'>('default');
   const [resetToken, setResetToken] = useState('');
+
+  // Multi-step registration state
+  const [registrationStep, setRegistrationStep] = useState<'form' | 'plans' | 'payment'>('form');
+  const [registrationData, setRegistrationData] = useState<any>(null);
+  const [paymentInfo, setPaymentInfo] = useState<{ email: string; planName: string; planPrice: string; } | null>(null);
 
   // Generate store code for Gestor
   React.useEffect(() => {
@@ -160,6 +165,55 @@ export const Auth: React.FC<AuthProps> = ({
       }
     } catch (error) {
       alert('Erro de conexão');
+    }
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData.entries());
+
+    // Se for gestor, avança para a seleção de planos
+    if (data.role === 'gestor') {
+      setRegistrationData(data);
+      setRegistrationStep('plans');
+    } else {
+      // Se for colaborador, registra diretamente
+      handleFinalRegister(data);
+    }
+  };
+
+  const handlePlanSelect = async (plan: Plan) => {
+    const finalData = { ...registrationData, plan: plan.name, price: plan.price };
+    await handleFinalRegister(finalData);
+  };
+
+  const handleFinalRegister = async (data: any) => {
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+
+      if (res.ok) {
+        if (data.role === 'gestor') {
+          // Sucesso no registro do gestor, avança para o pagamento
+          setPaymentInfo({ email: data.email, planName: data.plan, planPrice: data.price });
+          setRegistrationStep('payment');
+        } else {
+          // Sucesso no registro do colaborador
+          alert('Colaborador cadastrado com sucesso! Agora você pode fazer login.');
+          setScreen('login');
+        }
+      } else {
+        alert(result.error || 'Erro ao cadastrar.');
+        setRegistrationStep('form'); // Volta para o formulário em caso de erro
+      }
+    } catch (error) {
+      alert('Erro de conexão ao registrar.');
+      setRegistrationStep('form');
     }
   };
 
@@ -320,6 +374,34 @@ export const Auth: React.FC<AuthProps> = ({
     );
   }
 
+  // Se a tela for de registro, e o passo for 'plans', mostre a seleção de planos.
+  if (screen === 'register' && registrationStep === 'plans') {
+    return <PlanSelection onPlanSelect={handlePlanSelect} />;
+  }
+
+  // Se a tela for de registro, e o passo for 'payment', mostre o modal de pagamento.
+  if (screen === 'register' && registrationStep === 'payment' && paymentInfo) {
+    return (
+      <PixPaymentModal 
+        isOpen={true}
+        onClose={() => {
+          // Após fechar o modal, o usuário já está pendente. Direciona para o login.
+          setRegistrationStep('form');
+          setScreen('login');
+        }}
+        onGoBack={() => {
+          setRegistrationStep('plans');
+        }}
+        email={paymentInfo.email}
+        planName={paymentInfo.planName}
+        planPrice={paymentInfo.planPrice}
+      />
+    );
+  }
+
+  // Garante que o formulário de registro só apareça no passo 'form'.
+  if (screen === 'register' && registrationStep !== 'form') return null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <motion.div 
@@ -355,7 +437,7 @@ export const Auth: React.FC<AuthProps> = ({
           </button>
         </div>
 
-        <form onSubmit={onRegister} className="space-y-4">
+        <form onSubmit={handleRegisterSubmit} className="space-y-4">
           <input type="hidden" name="role" value={role} />
           <input type="hidden" name="store_code" value={storeCode} />
           
@@ -396,44 +478,20 @@ export const Auth: React.FC<AuthProps> = ({
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome Completo</label>
-            <input 
-              name="name" 
-              required 
-              value={name}
-              data-testid="input-name"
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" 
-              placeholder="Seu nome" 
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">E-mail</label>
-            <input 
-              name="email" 
-              type="email" 
-              required 
-              value={email}
-              data-testid="input-email"
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" 
-              placeholder="seu@email.com" 
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-4 space-y-4 lg:space-y-0">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome Completo</label>
+              <input name="name" required value={name} data-testid="input-name" onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="Seu nome" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">E-mail</label>
+              <input name="email" type="email" required value={email} data-testid="input-email" onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="seu@email.com" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Senha</label>
             <div className="relative">
-              <input 
-                name="password" 
-                type={showPassword ? "text" : "password"} 
-                value={password || ''}
-                data-testid="input-password"
-                onChange={(e) => setPassword(e.target.value)}
-                required 
-                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none pr-12" 
-                placeholder="••••••••" 
-              />
+              <input name="password" type={showPassword ? "text" : "password"} value={password || ''} data-testid="input-password" onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none pr-12" placeholder="••••••••" />
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -443,7 +501,7 @@ export const Auth: React.FC<AuthProps> = ({
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 space-y-4 lg:space-y-0">
             <div className="relative">
               <label className="block text-xs font-bold text-gray-400 uppercase mb-2">CEP</label>
               <div className="relative">

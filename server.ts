@@ -264,7 +264,7 @@ export async function createApp() {
   });
 
   app.post("/api/register", (req, res) => {
-    const { name, email, password, cep, establishment_name, role, store_code } = req.body;
+    const { name, email, password, cep, establishment_name, role, store_code, plan } = req.body;
     try {
       // Check if email exists
       const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
@@ -279,8 +279,9 @@ export async function createApp() {
         // Em ambiente de teste (Cypress), mantemos 'active' para não quebrar os testes. Em produção, 'pending'.
         const isTest = process.env.NODE_ENV === 'test' || process.env.CYPRESS_TEST === 'true';
         const initialStatus = isTest ? 'active' : 'pending';
-        const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role, store_code, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-          .run(name, email, password, cep, establishment_name, 'gestor', finalCode, initialStatus);
+        const finalPlan = plan || 'Basic'; // Garante um plano padrão se não for enviado
+        const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role, store_code, status, plan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          .run(name, email, password, cep, establishment_name, 'gestor', finalCode, initialStatus, finalPlan);
         
         // Alerta por E-mail para o Admin
         if (!isTest) {
@@ -314,7 +315,7 @@ export async function createApp() {
         }
 
         logAudit(info.lastInsertRowid as number, name, 'CADASTRO_GESTOR', `Novo gestor registrado: ${email} - Loja: ${establishment_name}`);
-        res.json({ id: info.lastInsertRowid, store_code: finalCode, status: initialStatus });
+        res.json({ id: info.lastInsertRowid, store_code: finalCode, status: initialStatus, plan: finalPlan });
       } else if (role === 'colaborador') {
         const store = db.prepare("SELECT id, establishment_name FROM users WHERE store_code = ? AND role = 'gestor'").get(store_code) as any;
         if (!store) return res.status(400).json({ error: "Código de loja inválido" });

@@ -242,15 +242,15 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 
 ### Cenário 4.4: Venda com Desconto (PDV)
 - **Descrição**: Realizar uma venda no PDV aplicando um desconto em porcentagem.
-- **Descrição**: Utilizar o scanner de código de barras para adicionar produtos.
 - **Passos**:
   1. Fazer login.
-  2. Navegar para PDV ou Entrada de Estoque.
-  3. (Simular leitura de código de barras - pode ser via input manual do ID em ambiente de teste).
-  4. Ler um ID de produto existente.
+  2. Navegar para a seção "PDV".
+  3. Adicionar produtos ao carrinho.
+  4. Inserir um valor no campo "Desconto (%)" (ex: 10).
+  5. Clicar em "Finalizar Venda".
 - **Validações E2E**:
   - O valor do "Total a Pagar" reflete o subtotal menos o desconto percentual.
-  - Após a venda, as transações são registradas no banco de dados com o `unit_cost` (preço de venda) já com o desconto aplicado.
+  - Após a venda, as transações são registradas no banco de dados com o preço de venda unitário (`sale_price` ou campo similar) refletindo o valor com desconto.
   - O lucro da venda, calculado no backend, deve ser baseado no preço final com desconto.
   - O campo de desconto é limpo para a próxima venda.
 
@@ -478,6 +478,28 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 - **Validações E2E**:
   - Mensagem de erro "UNIQUE constraint failed: products.user_id, products.sku" ou similar é exibida (o nome da coluna no banco não muda).
   - O segundo produto não é cadastrado.
+
+### Cenário 9.4: Validação de Limites de Plano
+- **Descrição**: Tentar adicionar usuários além do limite permitido pelo plano da loja.
+- **Passos (Plano Profissional - 1 Gestor, 9 Colaboradores)**:
+  1. Fazer login como `admin`.
+  2. Alterar o plano de uma loja para 'profissional'.
+  3. Garantir que a loja tenha 1 gestor e 9 colaboradores.
+  4. Tentar registrar um 10º colaborador para a mesma loja.
+  5. Tentar alterar o papel de um colaborador para 'gestor'.
+- **Validações E2E**:
+  - Ao tentar registrar o 10º colaborador, uma mensagem de erro "Limite de 9 colaboradores atingido para o Plano Profissional." é exibida. O usuário não é criado.
+  - Ao tentar promover um colaborador para gestor, uma mensagem de erro "Limite de 1 gestor atingido para o Plano Profissional." é exibida. O papel do usuário não é alterado.
+- **Passos (Plano Empresarial - 2 Gestores, ∞ Colaboradores)**:
+  1. Fazer login como `admin`.
+  2. Alterar o plano de uma loja para 'empresarial'.
+  3. Garantir que a loja tenha 1 gestor e 10+ colaboradores.
+  4. Registrar um 2º gestor para a loja.
+  5. Tentar registrar um 3º gestor para a loja.
+- **Validações E2E**:
+  - O registro de mais de 10 colaboradores é bem-sucedido.
+  - O registro do 2º gestor é bem-sucedido.
+  - Ao tentar registrar o 3º gestor, uma mensagem de erro "Limite de 2 gestores atingido para o Plano Empresarial." é exibida. O usuário não é criado.
 
 ---
 

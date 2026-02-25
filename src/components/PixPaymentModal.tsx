@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, MessageCircle, Clock } from 'lucide-react';
+import { X, Copy, MessageCircle, Clock, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface PixPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onGoBack: () => void;
   email: string;
+  planName: string;
+  planPrice: string;
 }
 
 // Helper para gerar o payload do PIX (BR Code) para QR Code funcional
 const generatePixPayload = (key: string, name: string, city: string, amount: string, txId: string = '***') => {
+  // Valida e formata o valor para o padrão PIX (ex: "100.00")
+  const formattedAmount = parseFloat(amount).toFixed(2);
+  if (isNaN(parseFloat(formattedAmount)) || parseFloat(formattedAmount) <= 0) {
+    console.error("Valor inválido para o PIX:", amount);
+    // Retorna um payload inválido ou um valor padrão para evitar erros silenciosos
+    return "PAYLOAD_INVALIDO";
+  }
+
   const format = (id: string, val: string) => id + val.length.toString().padStart(2, '0') + val;
   
   const payload = 
@@ -17,7 +28,7 @@ const generatePixPayload = (key: string, name: string, city: string, amount: str
     format('26', '0014BR.GOV.BCB.PIX' + format('01', key)) +
     format('52', '0000') +
     format('53', '986') +
-    format('54', amount) +
+    format('54', formattedAmount) +
     format('58', 'BR') +
     format('59', name) +
     format('60', city) +
@@ -35,7 +46,20 @@ const generatePixPayload = (key: string, name: string, city: string, amount: str
   return payload + crc.toString(16).toUpperCase().padStart(4, '0');
 };
 
-export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ isOpen, onClose, email }) => {
+const planDetails: Record<string, string> = {
+  'Básico': '1 Gestor + 4 Colaboradores',
+  'Profissional': '1 Gestor + 9 Colaboradores',
+  'Empresarial': 'Até 2 Gestores + Colaboradores Ilimitados',
+};
+
+export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onGoBack,
+  email,
+  planName,
+  planPrice
+}) => {
   const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutos em segundos
 
   useEffect(() => {
@@ -53,12 +77,12 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   const pixKey = "29556537805";
-  const amount = "100.00";
-  const amountDisplay = "100,00";
+  // Extrai o valor numérico do preço (ex: "R$ 89,90" -> "89.90")
+  const amount = planPrice.replace(/[^0-9,]/g, '').replace(',', '.');
   const whatsappNumber = "5511930051475";
   const pixPayload = generatePixPayload(pixKey, "Estoque App", "Sao Paulo", amount);
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`;
-  const message = encodeURIComponent(`Olá, realizei o cadastro com o email ${email} e fiz o pagamento de R$ ${amountDisplay} via PIX para o plano Gestor. Segue o comprovante para liberação do acesso.`);
+  const message = encodeURIComponent(`Olá, realizei o cadastro com o email ${email} e fiz o pagamento de ${planPrice} via PIX para o plano ${planName}. Segue o comprovante para liberação do acesso.`);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(pixKey);
@@ -72,14 +96,14 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ isOpen, onClos
         animate={{ opacity: 1, scale: 1 }}
         className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative"
       >
-        <button type="button" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <button type="button" onClick={onGoBack} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <X size={24} />
         </button>
         
         <div className="text-center mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Pagamento Necessário</h2>
-          <p className="text-gray-600 mt-1 text-sm">
-            Liberação imediata: <strong>1 Gestor + 4 Colaboradores</strong>
+          <p className="text-gray-600 mt-1 text-sm capitalize">
+            Plano <strong>{planName}</strong>: {planDetails[planName] || ''}
           </p>
         </div>
 
@@ -98,7 +122,7 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ isOpen, onClos
         <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-100">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-gray-500">Valor Único:</span>
-            <span className="text-xl font-bold text-green-600">R$ {amountDisplay}</span>
+            <span className="text-xl font-bold text-green-600">{planPrice}</span>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase">Chave PIX (CPF/Celular)</label>
@@ -129,6 +153,14 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({ isOpen, onClos
           Já realizei o pagamento
         </button>
         
+        <button 
+          type="button"
+          onClick={onGoBack}
+          className="w-full mt-2 text-center text-sm text-gray-500 hover:text-blue-600 font-bold transition-colors flex items-center justify-center gap-1"
+        >
+          <ArrowLeft size={14} /> Voltar e escolher outro plano
+        </button>
+
         <p className="text-xs text-center text-gray-400 mt-4">
           Seu acesso será liberado após a confirmação do pagamento.
         </p>
