@@ -82,7 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className={`flex items-center mb-8 transition-all ${isCollapsed ? 'flex-col gap-4 justify-center' : 'justify-between'}`}>
             <div className="flex items-center gap-2">
               {(user as any)?.logo_url ? (
-                <img src={(user as any).logo_url} alt="Logo" className="w-10 h-10 rounded-xl object-cover bg-white" />
+                <img src={(user as any).logo_url} alt="Logo" className="w-10 h-10 rounded-xl object-cover bg-white shrink-0" />
               ) : (
                 <div className="w-10 h-10 bg-[#00D4FF] rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20" style={{ backgroundColor: 'var(--color-accent, #00D4FF)' }}>
                   <Package className="text-[#1A3A5F] w-6 h-6" style={{ color: 'var(--color-primary, #1A3A5F)' }} />
