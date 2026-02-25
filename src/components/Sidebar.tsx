@@ -88,11 +88,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {appMode === 'full' && (
               <button 
                 type="button"
+                onClick={() => setActiveTab('manual')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              >
+                <BookOpen size={20} />
+                <span className="font-medium">Ajuda/Manual</span>
+              </button>
+            )}
+            {appMode === 'full' && (
+              <button 
+                type="button"
                 onClick={() => setActiveTab('dashboard')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
               >
                 <LayoutDashboard size={20} />
                 <span className="font-medium">Dashboard</span>
+              </button>
+            )}
+            <button 
+              type="button"
+              onClick={() => setActiveTab('financeiro')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'financeiro' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+            >
+              <DollarSign size={20} />
+              <span className="font-medium">Financeiro</span>
+            </button>
+            <button 
+              type="button"
+              onClick={() => setActiveTab('pdv')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'pdv' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+            >
+              <Store size={20} />
+              <span className="font-medium">Frente de Caixa</span>
+            </button>
+            {user?.role !== 'colaborador' && appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab('informativo')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'informativo' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              >
+                <TrendingUp size={20} />
+                <span className="font-medium">Informativo</span>
               </button>
             )}
             {appMode === 'full' && (
@@ -105,26 +141,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-medium">Inventário</span>
               </button>
             )}
-            <button 
-              type="button"
-              onClick={() => setActiveTab('pdv')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'pdv' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
-            >
-              <Store size={20} />
-              <span className="font-medium">Frente de Caixa</span>
-            </button>
-            {user?.role !== 'colaborador' && appMode === 'full' && (
-              <>
-                <button 
-                  type="button"
-                  onClick={() => setActiveTab('informativo')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'informativo' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
-                >
-                  <TrendingUp size={20} />
-                  <span className="font-medium">Informativo</span>
-                </button>
-              </>
-            )}
             {user?.role === 'gestor' && appMode === 'full' && (
               <button 
                 type="button"
@@ -133,24 +149,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <FileText size={20} />
                 <span className="font-medium">Relatório</span>
-              </button>
-            )}
-            <button 
-              type="button"
-              onClick={() => setActiveTab('financeiro')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'financeiro' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
-            >
-              <DollarSign size={20} />
-              <span className="font-medium">Financeiro</span>
-            </button>
-            {appMode === 'full' && (
-              <button 
-                type="button"
-                onClick={() => setActiveTab('manual')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
-              >
-                <BookOpen size={20} />
-                <span className="font-medium">Ajuda/Manual</span>
               </button>
             )}
             {(installPrompt || isIos) && (
