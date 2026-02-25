@@ -24,6 +24,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'credit' | 'debit' | 'pix'>('money');
   const [clientName, setClientName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [amountReceived, setAmountReceived] = useState('');
   const [discountPercentage, setDiscountPercentage] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<'PAID' | 'PENDING'>('PAID');
@@ -102,6 +103,19 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart, showPaymentModal]);
 
+  // Efeito para filtrar sugestões enquanto digita
+  useEffect(() => {
+    if (barcode.length > 1) {
+      const matches = products.filter(p => 
+        p.name.toLowerCase().includes(barcode.toLowerCase()) || 
+        p.sku.toLowerCase().includes(barcode.toLowerCase())
+      ).slice(0, 5); // Limita a 5 sugestões
+      setSuggestions(matches);
+    } else {
+      setSuggestions([]);
+    }
+  }, [barcode, products]);
+
   // 2. Lógica de Adicionar ao Carrinho (Scanner ou Manual)
   const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -111,11 +125,16 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
 
       // 1. Busca exata por SKU ou Código de Barras (Prioridade para Scanner)
       let product = products.find(p => p.sku.toLowerCase() === barcode.toLowerCase() || p.name.toLowerCase() === barcode.toLowerCase());
+      
+      // 2. Se não achar exato, mas tem sugestões visíveis, pega a primeira (Facilita digitação manual)
+      if (!product && suggestions.length > 0) {
+        product = suggestions[0];
+      }
 
       if (product) {
         addToCart(product);
         setBarcode('');
-
+        // setSuggestions([]) será limpo pelo useEffect quando barcode for vazio
         setErrorMsg('');
       } else {
         setErrorMsg(`Produto não encontrado: ${barcode}`);
@@ -150,6 +169,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
   const selectSuggestion = (product: Product) => {
     addToCart(product);
     setBarcode('');
+    setSuggestions([]);
     inputRef.current?.focus();
   };
 
@@ -278,6 +298,30 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
               className="w-full pl-14 pr-4 py-3 lg:py-5 text-lg lg:text-2xl font-bold bg-[#202024] border-2 border-zinc-700 rounded-xl focus:border-[#0055FF] focus:ring-4 focus:ring-[#0055FF]/20 outline-none text-white placeholder-zinc-600 transition-all shadow-inner"
               autoComplete="off"
             />
+            {/* Sugestões */}
+            <AnimatePresence>
+              {suggestions.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 right-0 bg-[#202024] shadow-2xl rounded-xl border border-zinc-700 mt-2 overflow-hidden z-30"
+                >
+                  {suggestions.map((product, index) => (
+                    <button
+                      key={product.id}
+                      onClick={() => selectSuggestion(product)}
+                      className={`w-full text-left p-4 border-b border-zinc-800 last:border-0 flex justify-between items-center group transition-colors ${index === 0 ? 'bg-[#0055FF]/10' : 'hover:bg-zinc-800'}`}
+                    >
+                      <div>
+                        <p className="font-bold text-white">{product.name}</p>
+                        <p className="text-xs text-zinc-400 font-mono">{product.sku}</p>
+                      </div>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
             
             {errorMsg && (
               <div className="absolute top-full left-0 mt-2 flex items-center gap-2 text-rose-500 text-sm font-bold animate-pulse bg-rose-500/10 px-3 py-1 rounded-lg">

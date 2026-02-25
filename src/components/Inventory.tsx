@@ -13,6 +13,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
   const isColaborador = user?.role === 'colaborador';
   const [editingPrice, setEditingPrice] = useState<Record<number, string>>({});
   const [savingPrice, setSavingPrice] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handlePriceChange = (productId: number, value: string) => {
     setEditingPrice(prev => ({ ...prev, [productId]: value }));
@@ -43,6 +44,11 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
     setEditingPrice(rest);
   };
 
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
       <div className="p-4 md:p-6 border-bottom border-gray-50 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -50,7 +56,9 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar por nome ou SKU..." 
+            placeholder="Buscar por nome ou SKU..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border-none rounded-xl text-sm w-full focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white dark:placeholder-gray-500"
           />
         </div>
@@ -70,7 +78,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
-            {products.map(p => (
+            {filteredProducts.map(p => (
               <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors group">
                 <td className="px-6 py-4">
                   <p className="font-bold text-sm text-gray-900 dark:text-white">{p.name}</p>
@@ -133,7 +141,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
 
       {/* Mobile Card Layout */}
       <div className="md:hidden divide-y divide-gray-50 dark:divide-zinc-800">
-        {products.map(p => (
+        {filteredProducts.map(p => (
           <div key={p.id} className="p-4 space-y-3">
             <div className="flex justify-between items-start">
               <div>

@@ -352,7 +352,7 @@ export const Modals: React.FC<ModalsProps> = ({
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Buscar Produto</label>
                 <div className="relative mb-2">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input 
+                  <input
                     type="text" 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -368,7 +368,7 @@ export const Modals: React.FC<ModalsProps> = ({
                         }, 10);
                       }
                     }}
-                    placeholder="Digite o nome para filtrar a lista..." 
+                    placeholder="Digite o nome ou SKU para filtrar..." 
                     className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white text-sm"
                     autoFocus
                   />

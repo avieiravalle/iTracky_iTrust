@@ -183,7 +183,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
     if (err) return res.status(403).json({ error: "Token inválido" });
 
     // SEGURANÇA CRÍTICA: Verificar se o usuário ainda existe e está ativo no banco
-    const dbUser = getDb().prepare("SELECT id, role, parent_id, status FROM users WHERE id = ?").get(user.id) as any;
+    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name FROM users WHERE id = ?").get(user.id) as any;
     
     if (!dbUser) return res.status(403).json({ error: "Usuário não encontrado ou excluído" });
     if (dbUser.status !== 'active') return res.status(403).json({ error: "Acesso revogado ou pendente" });
