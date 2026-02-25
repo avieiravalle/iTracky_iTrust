@@ -18,6 +18,13 @@ export function Dashboard({ user }: DashboardProps) {
       {/* Você pode adicionar seus cards de estatísticas aqui */}
 
       {/* E seus gráficos podem vir depois */}
+
+      <div className="space-y-8">
+        {/* Componentes originais do Dashboard ficariam aqui */}
+        <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+          <p className="text-blue-800">Área de gráficos e estatísticas principais.</p>
+        </div>
+      </div>
     </div>
   );
 }

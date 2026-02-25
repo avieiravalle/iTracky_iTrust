@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Loader2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product, User } from '../types';
 import { formatBRL } from '../utils/format';
 
@@ -7,13 +7,16 @@ interface InventoryProps {
   products: Product[];
   user: User | null;
   onUpdateSalePrice: (productId: number, newPrice: number) => Promise<void>;
+  onDeleteProduct: (product: Product) => void;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSalePrice }) => {
+export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSalePrice, onDeleteProduct }) => {
   const isColaborador = user?.role === 'colaborador';
   const [editingPrice, setEditingPrice] = useState<Record<number, string>>({});
   const [savingPrice, setSavingPrice] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const handlePriceChange = (productId: number, value: string) => {
     setEditingPrice(prev => ({ ...prev, [productId]: value }));
@@ -49,6 +52,21 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
     p.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Lógica de Paginação
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
       <div className="p-4 md:p-6 border-bottom border-gray-50 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -75,10 +93,11 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
               {!isColaborador && <th className="px-6 py-4">Preço Venda</th>}
               {!isColaborador && <th className="px-6 py-4">Valor Total</th>}
               <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4 text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
-            {filteredProducts.map(p => (
+            {currentProducts.map(p => (
               <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors group">
                 <td className="px-6 py-4">
                   <p className="font-bold text-sm text-gray-900 dark:text-white">{p.name}</p>
@@ -133,6 +152,17 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
                     <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-lg uppercase whitespace-nowrap">OK</span>
                   )}
                 </td>
+                <td className="px-6 py-4 text-right">
+                  {!isColaborador && (
+                    <button 
+                      onClick={() => onDeleteProduct(p)}
+                      className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                      title="Excluir Produto"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -141,18 +171,28 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
 
       {/* Mobile Card Layout */}
       <div className="md:hidden divide-y divide-gray-50 dark:divide-zinc-800">
-        {filteredProducts.map(p => (
+        {currentProducts.map(p => (
           <div key={p.id} className="p-4 space-y-3">
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold text-sm text-gray-900 dark:text-white">{p.name}</p>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono uppercase tracking-wider">{p.sku}</p>
               </div>
-              {p.current_stock <= p.min_stock ? (
-                <span className="px-2 py-1 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[9px] font-bold rounded-lg uppercase">Reposição</span>
-              ) : (
-                <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold rounded-lg uppercase">OK</span>
-              )}
+              <div className="flex items-center gap-2">
+                {p.current_stock <= p.min_stock ? (
+                  <span className="px-2 py-1 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[9px] font-bold rounded-lg uppercase">Reposição</span>
+                ) : (
+                  <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold rounded-lg uppercase">OK</span>
+                )}
+                {!isColaborador && (
+                  <button 
+                    onClick={() => onDeleteProduct(p)}
+                    className="p-1 text-gray-400 hover:text-rose-600"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="bg-gray-50 dark:bg-zinc-800/50 p-2 rounded-xl">
@@ -190,6 +230,34 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
           </div>
         ))}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="p-4 border-t border-gray-50 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredProducts.length)} de {filteredProducts.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

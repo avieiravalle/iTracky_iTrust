@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText } from 'lucide-react';
+import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText, Users } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SidebarProps {
   user: User | null;
   activeTab: string;
-  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv') => void;
+  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team') => void;
   onLogout: () => void;
   onShowTransaction: (type: 'ENTRY' | 'EXIT') => void;
   onShowAddProduct: () => void;
@@ -139,6 +139,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Package size={20} />
                 <span className="font-medium">Inventário</span>
+              </button>
+            )}
+            {user?.role === 'gestor' && appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab('team')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'team' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              >
+                <Users size={20} />
+                <span className="font-medium">Gestão de Equipe</span>
               </button>
             )}
             {user?.role === 'gestor' && appMode === 'full' && (

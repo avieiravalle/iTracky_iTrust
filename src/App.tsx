@@ -8,7 +8,9 @@ import {
   AlertCircle,
   Store,
   LayoutDashboard,
-  DollarSign
+  DollarSign,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, User, Stats, ProductStat, MonthlyStat, Receivable } from './types';
@@ -23,6 +25,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { Modals } from './components/Modals';
 import { POS } from './components/POS';
 import { PixPaymentModal } from './components/PixPaymentModal';
+import { TeamManagement } from './components/TeamManagement';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -46,7 +49,7 @@ export default function App() {
     start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -54,6 +57,8 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -329,6 +334,29 @@ export default function App() {
     setScreen('login');
   };
 
+  const handleDeleteProduct = async () => {
+    if (!productToDelete || !token) return;
+    setIsDeletingProduct(true);
+    try {
+      const res = await authFetch(`/api/products/${productToDelete.id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setToast({ message: 'Produto excluído com sucesso!', type: 'success' });
+        fetchData();
+        setProductToDelete(null);
+      } else {
+        const err = await res.json();
+        setToast({ message: err.error || 'Erro ao excluir produto', type: 'error' });
+      }
+    } catch (error) {
+      setToast({ message: 'Erro de conexão ao excluir produto', type: 'error' });
+    } finally {
+      setIsDeletingProduct(false);
+    }
+  };
+
   // Restaurar sessão ao carregar a página (Persistência de Login)
   useEffect(() => {
     const restoreSession = async () => {
@@ -479,6 +507,7 @@ export default function App() {
                activeTab === 'financeiro' ? 'Gestão Financeira' :
                activeTab === 'manual' ? 'Manual de Instruções' :
                activeTab === 'pdv' ? 'Frente de Caixa' :
+               activeTab === 'team' ? 'Gestão de Equipe' :
                'Painel Administrativo'}
             </h2>
             <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">Bem-vindo ao seu painel de controle.</p>
@@ -536,7 +565,14 @@ export default function App() {
                 user={user}
               />
             )}
-            {activeTab === 'inventory' && <Inventory products={products} user={user} onUpdateSalePrice={handleUpdateSalePrice} />}
+            {activeTab === 'inventory' && (
+              <Inventory 
+                products={products} 
+                user={user} 
+                onUpdateSalePrice={handleUpdateSalePrice} 
+                onDeleteProduct={(product) => setProductToDelete(product)}
+              />
+            )}
             {activeTab === 'informativo' && <Informativo productStats={productStats} />}
             {activeTab === 'financeiro' && (
               <Financeiro 
@@ -555,6 +591,7 @@ export default function App() {
                 onCheckoutComplete={fetchData} 
               />
             )}
+            {activeTab === 'team' && <TeamManagement user={user} />}
             {activeTab === 'admin' && <AdminDashboard />}
           </motion.div>
         </AnimatePresence>
@@ -572,6 +609,45 @@ export default function App() {
         onTransaction={handleTransaction}
         user={user}
       />
+
+      {/* Modal de Confirmação de Exclusão de Produto */}
+      <AnimatePresence>
+        {productToDelete && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-gray-100 dark:border-zinc-800"
+            >
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-12 h-12 bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-500 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Excluir Produto?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Tem certeza que deseja remover <strong>{productToDelete.name}</strong>? Esta ação não pode ser desfeita.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setProductToDelete(null)}
+                  className="flex-1 py-3 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleDeleteProduct}
+                  disabled={isDeletingProduct}
+                  className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2"
+                >
+                  {isDeletingProduct ? <Loader2 className="animate-spin w-4 h-4" /> : 'Sim, Excluir'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {toast && (

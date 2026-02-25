@@ -40,7 +40,8 @@ function runMigrations(database: Database.Database) {
       last_payment TEXT,
       store_code TEXT,
       parent_id INTEGER,
-      plan TEXT DEFAULT 'Basic'
+      plan TEXT DEFAULT 'Basic',
+      current_token TEXT
     );
 
     CREATE TABLE IF NOT EXISTS products (
@@ -114,6 +115,9 @@ function runMigrations(database: Database.Database) {
     if (!transactionInfo.some(col => col.name === 'payment_method')) {
       database.exec("ALTER TABLE transactions ADD COLUMN payment_method TEXT");
     }
+    if (!tableInfo.some(col => col.name === 'current_token')) {
+      database.exec("ALTER TABLE users ADD COLUMN current_token TEXT");
+    }
 
     // Ensure specific admin user exists
     const adminEmail = 'avieiravale@gmail.com';
@@ -183,10 +187,15 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
     if (err) return res.status(403).json({ error: "Token inválido" });
 
     // SEGURANÇA CRÍTICA: Verificar se o usuário ainda existe e está ativo no banco
-    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name FROM users WHERE id = ?").get(user.id) as any;
+    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name, current_token FROM users WHERE id = ?").get(user.id) as any;
     
     if (!dbUser) return res.status(403).json({ error: "Usuário não encontrado ou excluído" });
     if (dbUser.status !== 'active') return res.status(403).json({ error: "Acesso revogado ou pendente" });
+
+    // SINGLE SESSION: Se for Gestor ou Colaborador, verifica se o token é o mais recente
+    if ((dbUser.role === 'gestor' || dbUser.role === 'colaborador') && dbUser.current_token && dbUser.current_token !== token) {
+      return res.status(401).json({ error: "Sessão expirada. Você realizou login em outro dispositivo." });
+    }
 
     req.user = dbUser; // Anexa o usuário real do banco à requisição
     next();
@@ -314,6 +323,12 @@ export async function createApp() {
       const { password, ...userWithoutPassword } = user;
       // Gera o token JWT
       const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+      
+      // SINGLE SESSION: Salva o token atual no banco para invalidar anteriores
+      if (user.role !== 'admin') {
+        db.prepare("UPDATE users SET current_token = ? WHERE id = ?").run(token, user.id);
+      }
+
       logAudit(user.id, user.name, 'LOGIN', 'Usuário realizou login');
       res.json({ user: userWithoutPassword, token });
     } else {
@@ -360,7 +375,9 @@ export async function createApp() {
         return res.status(400).json({ error: "Código inválido ou expirado" });
       }
 
-      db.prepare("UPDATE users SET password = ? WHERE email = ?").run(newPassword, email);
+      // Ao resetar a senha, limpamos o token atual para forçar logout em todos os dispositivos
+      db.prepare("UPDATE users SET password = ?, current_token = NULL WHERE email = ?").run(newPassword, email);
+      
       db.prepare("DELETE FROM password_resets WHERE email = ?").run(email);
 
       const user = db.prepare("SELECT id, name FROM users WHERE email = ?").get(email) as any;
@@ -671,6 +688,88 @@ export async function createApp() {
         }
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para Excluir Produto (Apenas Gestor)
+  app.delete("/api/products/:id", authenticateToken, (req: AuthRequest, res) => {
+    const { id } = req.params;
+    try {
+      const user = req.user;
+
+      // 1. Bloqueio de Segurança: Apenas Gestor pode excluir
+      if (user.role !== 'gestor') {
+        return res.status(403).json({ error: "Acesso negado. Apenas gestores podem excluir produtos." });
+      }
+
+      const product = db.prepare("SELECT user_id, name, sku FROM products WHERE id = ?").get(id) as any;
+      if (!product) return res.status(404).json({ error: "Produto não encontrado." });
+
+      if (product.user_id !== user.id) return res.status(403).json({ error: "Acesso negado." });
+
+      db.prepare("DELETE FROM products WHERE id = ?").run(id);
+      logAudit(user.id, user.name, 'EXCLUSAO_PRODUTO', `Produto excluído: ${product.name} (SKU: ${product.sku})`);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- ROTAS DE GESTÃO DE EQUIPE (COLABORADORES) ---
+
+  app.get("/api/collaborators", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== 'gestor') {
+        return res.status(403).json({ error: "Acesso negado. Apenas gestores podem ver a equipe." });
+      }
+
+      // Busca usuários onde parent_id é igual ao ID do gestor logado
+      const collaborators = db.prepare("SELECT id, name, email, role, status, last_payment as last_login FROM users WHERE parent_id = ?").all(user.id);
+      res.json(collaborators);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/collaborators/:id/status", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (user.role !== 'gestor') return res.status(403).json({ error: "Acesso negado." });
+
+      // Verifica vínculo antes de alterar
+      const collaborator = db.prepare("SELECT id FROM users WHERE id = ? AND parent_id = ?").get(id, user.id);
+      if (!collaborator) return res.status(404).json({ error: "Colaborador não encontrado na sua equipe." });
+
+      db.prepare("UPDATE users SET status = ? WHERE id = ?").run(status, id);
+      logAudit(user.id, user.name, 'ALTERACAO_STATUS_COLABORADOR', `Status do colaborador ID ${id} alterado para ${status}`);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/collaborators/:id", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      if (user.role !== 'gestor') return res.status(403).json({ error: "Acesso negado." });
+
+      const collaborator = db.prepare("SELECT id, name FROM users WHERE id = ? AND parent_id = ?").get(id, user.id) as any;
+      if (!collaborator) return res.status(404).json({ error: "Colaborador não encontrado na sua equipe." });
+
+      db.prepare("DELETE FROM users WHERE id = ?").run(id);
+      logAudit(user.id, user.name, 'EXCLUSAO_COLABORADOR', `Colaborador ${collaborator.name} removido da equipe.`);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
