@@ -74,7 +74,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar por nome ou SKU..."
+            placeholder="Buscar por nome ou ID..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border-none rounded-xl text-sm w-full focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white dark:placeholder-gray-500"
@@ -86,7 +86,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
           <thead>
             <tr className="bg-gray-50/50 dark:bg-zinc-800/50 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-bold">
               <th className="px-6 py-4">Produto</th>
-              <th className="px-6 py-4">SKU</th>
+              <th className="px-6 py-4">ID</th>
               <th className="px-6 py-4 text-center">Validade</th>
               <th className="px-6 py-4">Estoque Atual</th>
               {!isColaborador && <th className="px-6 py-4">Custo Médio</th>}
@@ -176,7 +176,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold text-sm text-gray-900 dark:text-white">{p.name}</p>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono uppercase tracking-wider">{p.sku}</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono uppercase tracking-wider">ID: {p.sku}</p>
               </div>
               <div className="flex items-center gap-2">
                 {p.current_stock <= p.min_stock ? (

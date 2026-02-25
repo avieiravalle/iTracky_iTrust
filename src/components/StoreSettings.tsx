@@ -18,12 +18,11 @@ const PREDEFINED_THEMES = [
 
 export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
   // Inicializa o estado apenas uma vez com os dados do usuário ou padrão
-  const [colors, setColors] = useState(() => ({
-    primary: (user as any)?.custom_colors?.primary || '#1A3A5F',
-    secondary: (user as any)?.custom_colors?.secondary || '#4CAF50',
-    accent: (user as any)?.custom_colors?.accent || '#00D4FF'
-  }));
-  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>((user as any)?.custom_colors?.theme_mode || 'system');
+  const [colors, setColors] = useState(() => {
+    const userColors = (user as any)?.custom_colors;
+    return { primary: userColors?.primary || '#1A3A5F', secondary: userColors?.secondary || '#4CAF50', accent: userColors?.accent || '#00D4FF' };
+  });
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>((user as any)?.theme_preference || 'system');
   const [logoUrl, setLogoUrl] = useState((user as any)?.logo_url || '');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -99,8 +98,9 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          custom_colors: { ...colors, theme_mode: themeMode },
-          logo_url: logoUrl
+          custom_colors: colors,
+          logo_url: logoUrl,
+          theme_preference: themeMode
         })
       });
 

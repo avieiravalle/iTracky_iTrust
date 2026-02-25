@@ -36,6 +36,7 @@ Estoque/
 │   │   ├── Informativo.tsx         # Gráficos de performance de produtos
 │   │   ├── Inventory.tsx           # Lista de produtos (CRUD)
 │   │   ├── Manual.tsx              # Documentação interna para o usuário
+│   │   ├── OpportunityRadarModal.tsx # Modal com dicas de negócio da IA
 │   │   ├── Modals.tsx              # Modais globais (Add Produto, Transação)
 │   │   ├── PeriodClosingReport.tsx # Gerador de relatórios
 │   │   ├── PixPaymentModal.tsx     # Modal de pagamento do plano
@@ -103,7 +104,7 @@ O projeto utiliza o tema **"iTrust"**, focado em profissionalismo, confiança e 
 
 2.  **products**: Inventário.
     *   `user_id`: Dono do produto (sempre o ID do Gestor).
-    *   `sku`: Código único por loja.
+    *   `sku`: ID/Código único por loja.
 
 3.  **transactions**: Histórico de movimentações.
     *   `type`: 'ENTRY' (Entrada) ou 'EXIT' (Saída).

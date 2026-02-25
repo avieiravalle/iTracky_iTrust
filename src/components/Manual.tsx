@@ -29,7 +29,7 @@ export const Manual: React.FC = () => {
     {
       title: 'Inventário (Estoque)',
       icon: <Package className="text-orange-500" size={24} />,
-      content: 'Gerencie seus produtos. Você pode cadastrar novos itens com SKU e estoque mínimo. O sistema alertará automaticamente quando um produto estiver com estoque baixo (cor vermelha).'
+      content: 'Gerencie seus produtos. Você pode cadastrar novos itens com ID e estoque mínimo. O sistema alertará automaticamente quando um produto estiver com estoque baixo (cor vermelha).'
     },
     {
       title: 'Scanner e Leitor de Código',

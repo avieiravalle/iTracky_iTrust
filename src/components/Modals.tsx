@@ -198,7 +198,7 @@ export const Modals: React.FC<ModalsProps> = ({
     const val = e.target.value;
     setSku(val);
     const exists = products.some(p => p.sku.toLowerCase() === val.toLowerCase());
-    setSkuError(exists ? 'Este SKU já está em uso.' : '');
+    setSkuError(exists ? 'Este ID já está em uso.' : '');
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,7 +268,7 @@ export const Modals: React.FC<ModalsProps> = ({
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">SKU / Código</label>
+                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">ID / Código</label>
                 <div className="relative">
                   <input name="sku" data-testid="input-product-sku" required value={sku} onChange={handleSkuChange} className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none dark:text-white ${skuError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} placeholder="Ex: MON-DELL-001" />
                   {sku && !skuError && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />}
@@ -368,7 +368,7 @@ export const Modals: React.FC<ModalsProps> = ({
                         }, 10);
                       }
                     }}
-                    placeholder="Digite o nome ou SKU para filtrar..." 
+                    placeholder="Digite o nome ou ID para filtrar..." 
                     className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white text-sm"
                     autoFocus
                   />
@@ -378,9 +378,7 @@ export const Modals: React.FC<ModalsProps> = ({
                 <select name="product_id" data-testid="select-product" required value={selectedProductId} onChange={handleManualProductSelect} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
                   <option value="">Selecione um produto...</option>
                   {filteredProducts.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (SKU: {p.sku}) {showTransaction.type === 'EXIT' ? `- Est: ${p.current_stock}` : ''}
-                    </option>
+                    <option key={p.id} value={p.id}>{p.name} (ID: {p.sku}) {showTransaction.type === 'EXIT' ? `- Est: ${p.current_stock}` : ''}</option>
                   ))}
                 </select>
                 {searchTerm && filteredProducts.length === 0 && (

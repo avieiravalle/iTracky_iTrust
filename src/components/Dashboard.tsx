@@ -1,5 +1,5 @@
-import React from 'react';
-import { TrendingUp, AlertTriangle, Package, Calendar, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, AlertTriangle, Package, Calendar, Clock, Lightbulb } from 'lucide-react';
 import { Product, Stats, MonthlyStat, User } from '../types';
 import { formatBRL } from '../utils/format';
 import { 
@@ -11,6 +11,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
+import { OpportunityRadarModal } from './OpportunityRadarModal';
 
 interface DashboardProps {
   products: Product[];
@@ -40,7 +41,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const isColaborador = user?.role === 'colaborador';
   const lowStockProducts = products.filter(p => p.current_stock <= p.min_stock);
   const totalValue = products.reduce((acc, p) => acc + (p.current_stock * p.average_cost), 0);
-
+  
+  const [showRadarModal, setShowRadarModal] = useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {
@@ -127,7 +129,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span>Itens críticos</span>
           </div>
         </div>
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
+        {!isColaborador && (
+          <button
+            onClick={() => setShowRadarModal(true)}
+            className="bg-blue-50 dark:bg-blue-500/10 p-6 rounded-2xl border border-blue-100 dark:border-blue-500/20 shadow-sm transition-all hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-500/20 text-left group col-span-1 md:col-span-2 lg:col-span-2"
+          >
+            <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 mb-2">
+              <Lightbulb size={18} />
+              <span className="text-xs font-bold uppercase tracking-wider">Radar de Oportunidades</span>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Dicas iTrust</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
+              Clique para ver dicas de como aumentar seu lucro e girar seu estoque.
+            </p>
+          </button>
+        )}
+        <div className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors col-span-1 ${!isColaborador ? 'md:col-span-2 lg:col-span-2' : ''}`}>
           <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total de SKUs</p>
           <h3 className="text-2xl font-bold dark:text-white">{products.length}</h3>
           <div className="mt-4 flex items-center gap-2 text-gray-400 dark:text-gray-500 text-xs font-bold">
@@ -278,6 +295,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       )}
+
+      <OpportunityRadarModal isOpen={showRadarModal} onClose={() => setShowRadarModal(false)} />
     </div>
   );
 };

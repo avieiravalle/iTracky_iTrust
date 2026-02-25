@@ -26,6 +26,12 @@ export function getDb() {
   return db;
 }
 
+// Helper function to get the day of the week name
+const getDayName = (dayIndex: number) => {
+  const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  return days[dayIndex];
+};
+
 function runMigrations(database: Database.Database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -43,7 +49,8 @@ function runMigrations(database: Database.Database) {
       plan TEXT DEFAULT 'Basic',
       current_token TEXT,
       custom_colors TEXT,
-      logo_url TEXT
+      logo_url TEXT,
+      theme_preference TEXT DEFAULT 'system'
     );
 
     CREATE TABLE IF NOT EXISTS products (
@@ -126,6 +133,9 @@ function runMigrations(database: Database.Database) {
     if (!tableInfo.some(col => col.name === 'logo_url')) {
       database.exec("ALTER TABLE users ADD COLUMN logo_url TEXT");
     }
+    if (!tableInfo.some(col => col.name === 'theme_preference')) {
+      database.exec("ALTER TABLE users ADD COLUMN theme_preference TEXT DEFAULT 'system'");
+    }
 
     // Ensure specific admin user exists
     const adminEmail = 'avieiravale@gmail.com';
@@ -195,7 +205,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
     if (err) return res.status(403).json({ error: "Token inválido" });
 
     // SEGURANÇA CRÍTICA: Verificar se o usuário ainda existe e está ativo no banco
-    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name, current_token, custom_colors, logo_url FROM users WHERE id = ?").get(user.id) as any;
+    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name, current_token, custom_colors, logo_url, theme_preference FROM users WHERE id = ?").get(user.id) as any;
     
     if (!dbUser) return res.status(403).json({ error: "Usuário não encontrado ou excluído" });
     if (dbUser.status !== 'active') return res.status(403).json({ error: "Acesso revogado ou pendente" });
@@ -207,7 +217,9 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
 
     // Parse custom_colors se existir
     if (dbUser.custom_colors && typeof dbUser.custom_colors === 'string') {
-      dbUser.custom_colors = JSON.parse(dbUser.custom_colors);
+      try {
+        dbUser.custom_colors = JSON.parse(dbUser.custom_colors);
+      } catch (e) { console.error("Error parsing custom_colors:", e); }
     }
 
     req.user = dbUser; // Anexa o usuário real do banco à requisição
@@ -473,6 +485,8 @@ export async function createApp() {
           p.name,
           p.sku,
           SUM(t.quantity) as total_sold,
+          COALESCE(SUM(t.unit_cost * t.quantity), 0) as totalRevenue,
+          COALESCE(SUM(t.cost_at_transaction * t.quantity), 0) as totalCost,
           COALESCE(SUM(CASE WHEN t.type = 'EXIT' AND t.unit_cost > 0 THEN (t.amount_paid - (t.cost_at_transaction * (t.amount_paid / t.unit_cost))) ELSE 0 END), 0) as profit
         FROM transactions t
         JOIN products p ON t.product_id = p.id
@@ -708,15 +722,19 @@ export async function createApp() {
   app.patch("/api/store-settings", authenticateToken, (req: AuthRequest, res) => {
     try {
       const user = req.user;
-      const { custom_colors, logo_url } = req.body;
+      const { custom_colors, logo_url, theme_preference } = req.body;
 
       if (user.role !== 'gestor') {
         return res.status(403).json({ error: "Apenas gestores podem alterar configurações da loja." });
       }
 
       const colorsString = custom_colors ? JSON.stringify(custom_colors) : null;
-      db.prepare("UPDATE users SET custom_colors = ?, logo_url = ? WHERE id = ?").run(colorsString, logo_url, user.id);
+      const validThemes = ['light', 'dark', 'system'];
+      const finalTheme = theme_preference && validThemes.includes(theme_preference) ? theme_preference : 'system';
+
+      db.prepare("UPDATE users SET custom_colors = ?, logo_url = ?, theme_preference = ? WHERE id = ?").run(colorsString, logo_url, finalTheme, user.id);
       
+      logAudit(user.id, user.name, 'UPDATE_SETTINGS', `Configurações da loja atualizadas.`);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -781,6 +799,52 @@ export async function createApp() {
       logAudit(user.id, user.name, 'ALTERACAO_STATUS_COLABORADOR', `Status do colaborador ID ${id} alterado para ${status}`);
       
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/collaborators/:id/logs", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user; // This is the gestor
+      const { id: collaboratorId } = req.params;
+
+      if (user.role !== 'gestor') {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+
+      // Security check: ensure the requested collaborator belongs to the gestor.
+      const collaborator = db.prepare("SELECT id FROM users WHERE id = ? AND parent_id = ?").get(collaboratorId, user.id);
+      if (!collaborator) {
+        return res.status(404).json({ error: "Colaborador não encontrado na sua equipe." });
+      }
+
+      const logs = db.prepare("SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50").all(collaboratorId);
+      res.json(logs);
+
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/collaborators/:id/logs", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user; // This is the gestor
+      const { id: collaboratorId } = req.params;
+
+      if (user.role !== 'gestor') {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+
+      // Security check: ensure the requested collaborator belongs to the gestor.
+      const collaborator = db.prepare("SELECT id FROM users WHERE id = ? AND parent_id = ?").get(collaboratorId, user.id);
+      if (!collaborator) {
+        return res.status(404).json({ error: "Colaborador não encontrado na sua equipe." });
+      }
+
+      const logs = db.prepare("SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50").all(collaboratorId);
+      res.json(logs);
+
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1078,6 +1142,154 @@ export async function createApp() {
         storeName: user.establishment_name || 'Minha Loja'
       });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/business-insights", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+      const period = (req.query.period as string) || 'biweekly'; // 'weekly', 'biweekly', 'monthly'
+
+      let dateModifier: string;
+      switch (period) {
+        case 'weekly':
+          dateModifier = "'-7 days'";
+          break;
+        case 'monthly':
+          dateModifier = "'-30 days'";
+          break;
+        case 'biweekly':
+        default:
+          dateModifier = "'-15 days'";
+          break;
+      }
+
+      // 1. Produtos mais vendidos (Top 5 por quantidade no período selecionado)
+      const topSellingProducts = db.prepare(`
+        SELECT p.name, SUM(t.quantity) as total_sold
+        FROM transactions t
+        JOIN products p ON t.product_id = p.id
+        WHERE p.user_id = ? AND t.type = 'EXIT' AND t.timestamp >= date('now', ${dateModifier})
+        GROUP BY p.id
+        ORDER BY total_sold DESC
+        LIMIT 5
+      `).all(ownerId);
+
+      // 2. Produtos parados (+20 dias)
+      const stagnantProducts = db.prepare(`
+        SELECT p.name, p.current_stock, MAX(t.timestamp) as last_transaction_date
+        FROM products p
+        LEFT JOIN transactions t ON p.id = t.product_id
+        WHERE p.user_id = ? AND p.current_stock > 0
+        GROUP BY p.id
+        HAVING last_transaction_date IS NULL OR last_transaction_date < date('now', '-20 days')
+        ORDER BY p.current_stock DESC
+        LIMIT 5
+      `).all(ownerId);
+
+      // 4. Dias/Horários de menor movimento (no período selecionado)
+      const lowMovementSlots = db.prepare(`
+        SELECT 
+          strftime('%w', timestamp) as day_of_week, 
+          CAST(strftime('%H', timestamp) AS INTEGER) as hour_of_day,
+          COUNT(*) as transaction_count
+        FROM transactions
+        WHERE product_id IN (SELECT id FROM products WHERE user_id = ?)
+          AND type = 'EXIT' AND timestamp >= date('now', ${dateModifier})
+        GROUP BY day_of_week, hour_of_day
+        ORDER BY transaction_count ASC
+        LIMIT 3
+      `).all(ownerId) as any[];
+
+      // --- MOCK AI RESPONSE ---
+      // In a real scenario, you would format the data above into a prompt and send it to an AI service.
+      // For this example, we'll generate mock insights based on the data.
+
+      const insights = [];
+      const usedProductNames = new Set();
+
+      // Insight 1: Cross-Selling
+      if (topSellingProducts.length > 0 && stagnantProducts.length > 0) {
+        const topSeller = topSellingProducts[0] as any;
+        const stagnantItem = stagnantProducts[0] as any;
+        insights.push({
+          icon: 'Combine',
+          title: 'Oportunidade de Combo',
+          text: `Detectamos que o item "${topSeller.name}" sai muito, mas o "${stagnantItem.name}" está parado. Que tal um combo "Kit Especial" com 15% de desconto?`
+        });
+        usedProductNames.add(topSeller.name);
+        usedProductNames.add(stagnantItem.name);
+      }
+
+      // Insight 2: Giro de Estoque
+      const nextStagnant = stagnantProducts.find(p => !usedProductNames.has((p as any).name));
+      if (insights.length < 3 && nextStagnant) {
+        const stagnantItem = nextStagnant as any;
+        insights.push({
+          icon: 'Zap',
+          title: 'Estoque Crítico',
+          text: `Você tem ${stagnantItem.current_stock} unidades do Produto "${stagnantItem.name}" sem movimentação há mais de 20 dias. Sugerimos uma oferta "Leve 2, Pague 1" para liberar capital de giro.`
+        });
+        usedProductNames.add(stagnantItem.name);
+      }
+
+      // Insight 3: Horário de Baixo Movimento
+      if (insights.length < 3 && lowMovementSlots.length > 0) {
+        const lowSlot = lowMovementSlots[0];
+        const dayName = getDayName(parseInt(lowSlot.day_of_week));
+        const period = lowSlot.hour_of_day < 12 ? 'manhã' : lowSlot.hour_of_day < 18 ? 'tarde' : 'noite';
+        insights.push({
+          icon: 'Clock',
+          title: 'Aumente o Fluxo',
+          text: `Suas ${dayName}s à ${period} têm baixo movimento. Crie um "Happy Hour de Produtos" com desconto progressivo para atrair clientes nesse horário.`
+        });
+      }
+
+      // --- Padding with Generic Insights to ensure 3 total ---
+      const genericInsights = [
+        {
+          icon: 'Zap',
+          title: 'Revise suas Margens',
+          text: "Vá em 'Informativo' e analise o 'Lucro Médio/Un' dos seus produtos. Aumentar o preço de venda dos itens mais lucrativos pode impulsionar seus ganhos."
+        },
+        {
+          icon: 'Combine',
+          title: 'Crie Kits Estratégicos',
+          text: "Pense em produtos que são comprados juntos. Crie um novo produto 'Kit' (ex: Kit Café da Manhã) e adicione os itens a ele para facilitar a venda."
+        },
+        {
+          icon: 'Combine',
+          title: 'Fidelize Clientes',
+          text: "Identifique clientes recorrentes na tela 'Financeiro' e ofereça um benefício na próxima compra para fortalecer o relacionamento."
+        },
+        {
+          icon: 'Clock',
+          title: 'Otimize o Estoque Mínimo',
+          text: "Ajuste o 'Estoque Mínimo' no cadastro de produtos para receber alertas de reposição mais precisos e evitar perder vendas."
+        },
+        {
+          icon: 'Info',
+          title: 'Continue Vendendo!',
+          text: 'Seu negócio está indo bem! Continue registrando suas vendas e entradas para que possamos gerar novas oportunidades para você.'
+        }
+      ];
+
+      const existingTitles = new Set(insights.map(i => i.title));
+      let genericIndex = 0;
+      while (insights.length < 3 && genericIndex < genericInsights.length) {
+        const nextGeneric = genericInsights[genericIndex];
+        if (!existingTitles.has(nextGeneric.title)) {
+          insights.push(nextGeneric);
+        }
+        genericIndex++;
+      }
+
+      res.json(insights.slice(0, 3)); // Ensure it's exactly 3
+
+    } catch (error: any) {
+      console.error("Error fetching business insights:", error);
       res.status(500).json({ error: error.message });
     }
   });

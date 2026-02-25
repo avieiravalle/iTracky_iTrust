@@ -319,7 +319,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                     <div className="text-left">
                       <span className="block text-sm font-bold">Novo Produto</span>
-                      <span className="text-[10px] opacity-60 uppercase tracking-tighter">Cadastrar SKU</span>
+                      <span className="text-[10px] opacity-60 uppercase tracking-tighter">Cadastrar ID</span>
                     </div>
                   </div>
                   <ArrowRight size={20} className="opacity-40" />

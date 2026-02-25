@@ -103,12 +103,12 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   1. Fazer login como Gestor/Colaborador.
   2. Navegar para a seção "Inventário" ou "Produtos".
   3. Clicar em "Adicionar Produto".
-  4. Preencher formulário com Nome, SKU (único), Estoque Mínimo.
+  4. Preencher formulário com Nome, ID (único), Estoque Mínimo.
   5. Clicar em "Salvar".
 - **Validações E2E**:
   - Produto aparece na lista de produtos.
   - No banco de dados, o produto é criado com `current_stock = 0` e `average_cost = 0`.
-  - SKU duplicado deve gerar erro.
+  - ID duplicado deve gerar erro.
 
 ### Cenário 2.2: Visualização e Ordenação de Produtos
 - **Descrição**: Visualizar a lista de produtos e testar as opções de ordenação.
@@ -234,11 +234,11 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 - **Passos**:
   1. Fazer login.
   2. Navegar para PDV ou Entrada de Estoque.
-  3. (Simular leitura de código de barras - pode ser via input manual do SKU em ambiente de teste).
-  4. Ler um SKU de produto existente.
+  3. (Simular leitura de código de barras - pode ser via input manual do ID em ambiente de teste).
+  4. Ler um ID de produto existente.
 - **Validações E2E**:
   - O produto é automaticamente adicionado ao carrinho (PDV) ou selecionado no formulário (Entrada).
-  - Se o SKU não existir, o sistema deve sugerir o cadastro (Entrada) ou exibir um alerta (PDV).
+  - Se o ID não existir, o sistema deve sugerir o cadastro (Entrada) ou exibir um alerta (PDV).
 
 ### Cenário 4.4: Venda com Desconto (PDV)
 - **Descrição**: Realizar uma venda no PDV aplicando um desconto em porcentagem.
@@ -246,8 +246,8 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 - **Passos**:
   1. Fazer login.
   2. Navegar para PDV ou Entrada de Estoque.
-  3. (Simular leitura de código de barras - pode ser via input manual do SKU em ambiente de teste).
-  4. Ler um SKU de produto existente.
+  3. (Simular leitura de código de barras - pode ser via input manual do ID em ambiente de teste).
+  4. Ler um ID de produto existente.
 - **Validações E2E**:
   - O valor do "Total a Pagar" reflete o subtotal menos o desconto percentual.
   - Após a venda, as transações são registradas no banco de dados com o `unit_cost` (preço de venda) já com o desconto aplicado.
@@ -445,7 +445,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 
 ---
 
-## 9. Testes de Integridade e Edge Cases
+## 9. Testes de Integridade e Casos de Borda
 
 ### Cenário 9.1: Limite de Colaboradores por Loja
 - **Descrição**: Tentar adicionar mais de 4 colaboradores a uma loja.
@@ -469,14 +469,14 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Todos os produtos e transações associados a esse gestor são removidos do banco de dados (devido a `ON DELETE CASCADE`).
   - Um log de auditoria para a exclusão é registrado.
 
-### Cenário 9.3: Conflitos de SKU
-- **Descrição**: Tentar cadastrar um produto com um SKU já existente para o mesmo `user_id`.
+### Cenário 9.3: Conflitos de ID
+- **Descrição**: Tentar cadastrar um produto com um ID já existente para o mesmo `user_id`.
 - **Passos**:
   1. Fazer login.
-  2. Cadastrar um produto com SKU "PROD001".
-  3. Tentar cadastrar outro produto com o mesmo SKU "PROD001".
+  2. Cadastrar um produto com ID "PROD001".
+  3. Tentar cadastrar outro produto com o mesmo ID "PROD001".
 - **Validações E2E**:
-  - Mensagem de erro "UNIQUE constraint failed: products.user_id, products.sku" ou similar é exibida.
+  - Mensagem de erro "UNIQUE constraint failed: products.user_id, products.sku" ou similar é exibida (o nome da coluna no banco não muda).
   - O segundo produto não é cadastrado.
 
 ---
