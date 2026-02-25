@@ -9,6 +9,8 @@ import {
   Store,
   LayoutDashboard,
   DollarSign,
+  Search,
+  Bell,
   Loader2,
   AlertTriangle
 } from 'lucide-react';
@@ -26,6 +28,7 @@ import { Modals } from './components/Modals';
 import { POS } from './components/POS';
 import { PixPaymentModal } from './components/PixPaymentModal';
 import { TeamManagement } from './components/TeamManagement';
+import { StoreSettings } from './components/StoreSettings';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -49,7 +52,7 @@ export default function App() {
     start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -59,6 +62,7 @@ export default function App() {
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -77,6 +81,29 @@ export default function App() {
       localStorage.setItem('theme', 'light');
     }
   }, [darkMode]);
+
+  // Aplicar cores personalizadas
+  useEffect(() => {
+    const customColors = (user as any)?.custom_colors;
+    if (customColors) {
+      document.documentElement.style.setProperty('--color-primary', customColors.primary);
+      document.documentElement.style.setProperty('--color-secondary', customColors.secondary);
+      document.documentElement.style.setProperty('--color-accent', customColors.accent);
+
+      // Aplicar preferência de tema da loja
+      if (customColors.theme_mode) {
+        if (customColors.theme_mode === 'dark') setDarkMode(true);
+        else if (customColors.theme_mode === 'light') setDarkMode(false);
+        else if (customColors.theme_mode === 'system') {
+          setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+        }
+      }
+    } else {
+      document.documentElement.style.removeProperty('--color-primary');
+      document.documentElement.style.removeProperty('--color-secondary');
+      document.documentElement.style.removeProperty('--color-accent');
+    }
+  }, [user]);
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -127,12 +154,13 @@ export default function App() {
         evolutionUrl += `&range=${rangeMap[evolutionPeriod]}`;
       }
 
-      const [productsRes, statsRes, productStatsRes, monthlyStatsRes, receivablesRes] = await Promise.allSettled([
+      const [productsRes, statsRes, productStatsRes, monthlyStatsRes, receivablesRes, userRes] = await Promise.allSettled([
         authFetch(`/api/products`), // Não precisa mais enviar userId na URL
         authFetch(`/api/stats`),
         authFetch(`/api/product-stats`),
         authFetch(evolutionUrl),
-        authFetch(`/api/receivables`)
+        authFetch(`/api/receivables`),
+        authFetch(`/api/me`) // Garante que buscamos as configurações novas
       ]);
 
       if (productsRes.status === 'fulfilled' && productsRes.value.ok) {
@@ -158,6 +186,14 @@ export default function App() {
       if (receivablesRes.status === 'fulfilled' && receivablesRes.value.ok) {
         const receivablesData = await receivablesRes.value.json();
         setReceivables(receivablesData);
+      }
+
+      if (userRes.status === 'fulfilled' && userRes.value.ok) {
+        const userData = await userRes.value.json();
+        if (JSON.stringify(userData) !== JSON.stringify(user)) {
+          setUser(userData);
+          localStorage.setItem('userData', JSON.stringify(userData));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -407,6 +443,11 @@ export default function App() {
             </div>
           </div>
           <AdminDashboard />
+          <footer className="mt-12 text-center pt-6 border-t border-gray-200 dark:border-zinc-800">
+            <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
+              iTrust ERP – Gestão inteligente, confiança absoluta.
+            </p>
+          </footer>
         </div>
       </div>
     );
@@ -473,13 +514,18 @@ export default function App() {
               </p>
             </button>
           </div>
+          <footer className="mt-12 text-center">
+            <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
+              iTrust ERP – Gestão inteligente, confiança absoluta.
+            </p>
+          </footer>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-[#1A1A1A] dark:text-white pb-20 md:pb-0 transition-colors">
+    <div className="min-h-screen bg-[#F4F7F6] dark:bg-[#0f172a] text-[#2D3436] dark:text-white pb-20 md:pb-0 transition-colors font-sans">
       <Sidebar 
         user={user} 
         activeTab={activeTab} 
@@ -495,29 +541,56 @@ export default function App() {
           localStorage.removeItem('appMode');
           setScreen('mode_selection');
         }}
+        isCollapsed={isSidebarCollapsed}
+        toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
-      <main className="md:ml-64 p-4 md:p-8">
-        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
-              {activeTab === 'dashboard' ? 'Visão Geral' : 
-               activeTab === 'inventory' ? 'Controle de Estoque' : 
-               activeTab === 'informativo' ? 'Informativo de Lucros' :
-               activeTab === 'financeiro' ? 'Gestão Financeira' :
-               activeTab === 'manual' ? 'Manual de Instruções' :
-               activeTab === 'pdv' ? 'Frente de Caixa' :
-               activeTab === 'team' ? 'Gestão de Equipe' :
-               'Painel Administrativo'}
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">Bem-vindo ao seu painel de controle.</p>
+      <main className={`p-4 md:p-8 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+        {/* Header Superior iTrust */}
+        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8 bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-4">
+            {(user as any)?.logo_url && (
+              <img 
+                src={(user as any).logo_url} 
+                alt="Logo" 
+                className="w-12 h-12 rounded-xl object-cover bg-white shadow-sm border border-gray-100 dark:border-gray-700" 
+              />
+            )}
+            <div>
+              <h2 className="text-xl font-bold text-[#2D3436] dark:text-white">
+                {activeTab === 'dashboard' ? 'Início' : 
+                 activeTab === 'inventory' ? 'Inventário' : 
+                 activeTab === 'informativo' ? 'Relatórios' :
+                 activeTab === 'financeiro' ? 'Financeiro' :
+                 activeTab === 'manual' ? 'Ajuda' :
+                 activeTab === 'pdv' ? 'PDV' :
+                 activeTab === 'team' ? 'Equipe' :
+                 activeTab === 'settings' ? 'Configurações da Loja' :
+                 'Configurações'}
+              </h2>
+            </div>
           </div>
-          <div className="hidden md:flex gap-3">
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden md:block">
+                <p className="text-sm font-bold text-[#2D3436] dark:text-white">{user?.name}</p>
+                <p className="text-xs text-[#00D4FF] font-medium capitalize">{user?.role}</p>
+              </div>
+              <div className="w-10 h-10 bg-[#1A3A5F] text-white rounded-full flex items-center justify-center font-bold shadow-lg shadow-blue-900/20">
+                {user?.name.charAt(0).toUpperCase()}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Barra de Ações Rápidas (Reposicionada) */}
+        <div className="flex justify-end gap-3 mb-6">
             <button 
               type="button"
               onClick={() => setShowTransaction({ type: 'ENTRY' })}
               data-testid="btn-entry"
-              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-100 font-medium hover:bg-emerald-100 transition-colors"
+              className="flex items-center gap-2 bg-white dark:bg-[#1e293b] text-[#2D3436] dark:text-white px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 font-medium hover:border-[#4CAF50] hover:text-[#4CAF50] transition-all shadow-sm"
             >
               <ArrowDownCircle size={18} />
               Entrada
@@ -526,7 +599,7 @@ export default function App() {
               type="button"
               onClick={() => setShowTransaction({ type: 'EXIT' })}
               data-testid="btn-exit"
-              className="flex items-center gap-2 bg-rose-50 text-rose-700 px-4 py-2 rounded-xl border border-rose-100 font-medium hover:bg-rose-100 transition-colors"
+              className="flex items-center gap-2 bg-white dark:bg-[#1e293b] text-[#2D3436] dark:text-white px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 font-medium hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm"
             >
               <ArrowUpCircle size={18} />
               Saída
@@ -535,13 +608,12 @@ export default function App() {
               type="button"
               onClick={() => setShowAddProduct(true)}
               data-testid="btn-new-product"
-              className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-xl font-medium hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-2 bg-[#4CAF50] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#43A047] transition-all shadow-lg shadow-green-500/20"
             >
               <Plus size={18} />
               Novo Produto
             </button>
-          </div>
-        </header>
+        </div>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -592,9 +664,15 @@ export default function App() {
               />
             )}
             {activeTab === 'team' && <TeamManagement user={user} />}
+            {activeTab === 'settings' && <StoreSettings user={user} onUpdateUser={fetchData} />}
             {activeTab === 'admin' && <AdminDashboard />}
           </motion.div>
         </AnimatePresence>
+        <footer className="mt-12 text-center pt-6 border-t border-gray-200 dark:border-zinc-800">
+          <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
+            iTrust ERP – Gestão inteligente, confiança absoluta.
+          </p>
+        </footer>
       </main>
 
       <Modals 

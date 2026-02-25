@@ -97,8 +97,8 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
-            {currentProducts.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors group">
+            {currentProducts.map((p, index) => (
+              <tr key={p.id} className={`transition-colors group ${index % 2 === 0 ? 'bg-white dark:bg-[#1e293b]' : 'bg-[#F4F7F6] dark:bg-[#0f172a]/50'} hover:bg-blue-50/50 dark:hover:bg-blue-900/10`}>
                 <td className="px-6 py-4">
                   <p className="font-bold text-sm text-gray-900 dark:text-white">{p.name}</p>
                 </td>

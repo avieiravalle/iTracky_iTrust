@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText, Users } from 'lucide-react';
+import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText, Users, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SidebarProps {
   user: User | null;
   activeTab: string;
-  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team') => void;
+  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings') => void;
   onLogout: () => void;
   onShowTransaction: (type: 'ENTRY' | 'EXIT') => void;
   onShowAddProduct: () => void;
@@ -15,6 +15,8 @@ interface SidebarProps {
   setDarkMode: (val: boolean) => void;
   appMode?: 'full' | 'pos_finance';
   onSwitchMode?: () => void;
+  isCollapsed?: boolean;
+  toggleSidebar?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -28,7 +30,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   darkMode,
   setDarkMode,
   appMode = 'full',
-  onSwitchMode
+  onSwitchMode,
+  isCollapsed = false,
+  toggleSidebar
 }) => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -65,14 +69,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Sidebar - Desktop Only */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white dark:bg-zinc-900 border-r border-[#E5E7EB] dark:border-zinc-800 z-10 hidden md:block transition-colors">
-        <div className="p-6 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-8">
+      <aside 
+        className={`fixed left-0 top-0 h-full bg-[#1A3A5F] border-r border-white/10 z-10 hidden md:block transition-all duration-300 shadow-2xl ${isCollapsed ? 'w-20' : 'w-64'}`} 
+        style={{ backgroundColor: 'var(--color-primary, #1A3A5F)' }}
+      >
+        {toggleSidebar && (
+          <button onClick={toggleSidebar} className="absolute -right-3 top-9 bg-white dark:bg-zinc-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-zinc-700 rounded-full p-1 shadow-md hover:text-blue-600 transition-colors z-50">
+            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        )}
+        <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'p-3' : 'p-6'}`}>
+          <div className={`flex items-center mb-8 transition-all ${isCollapsed ? 'flex-col gap-4 justify-center' : 'justify-between'}`}>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Package className="text-white w-5 h-5" />
-              </div>
-              <h1 className="font-bold text-lg tracking-tight dark:text-white">{user?.establishment_name || 'StockFlow'}</h1>
+              {(user as any)?.logo_url ? (
+                <img src={(user as any).logo_url} alt="Logo" className="w-10 h-10 rounded-xl object-cover bg-white" />
+              ) : (
+                <div className="w-10 h-10 bg-[#00D4FF] rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20" style={{ backgroundColor: 'var(--color-accent, #00D4FF)' }}>
+                  <Package className="text-[#1A3A5F] w-6 h-6" style={{ color: 'var(--color-primary, #1A3A5F)' }} />
+                </div>
+              )}
+              {!isCollapsed && <h1 className="font-bold text-lg tracking-tight text-white truncate max-w-[120px]">{user?.establishment_name || 'iTrust'}</h1>}
             </div>
             <button 
               type="button"
@@ -89,106 +105,125 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button 
                 type="button"
                 onClick={() => setActiveTab('manual')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'manual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'manual' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'manual' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
               >
                 <BookOpen size={20} />
-                <span className="font-medium">Ajuda/Manual</span>
+                {!isCollapsed && <span className="font-medium">Ajuda/Manual</span>}
               </button>
             )}
             {appMode === 'full' && (
               <button 
                 type="button"
                 onClick={() => setActiveTab('dashboard')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'dashboard' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'dashboard' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
               >
                 <LayoutDashboard size={20} />
-                <span className="font-medium">Dashboard</span>
+                {!isCollapsed && <span className="font-medium">Dashboard</span>}
               </button>
             )}
             <button 
               type="button"
               onClick={() => setActiveTab('financeiro')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'financeiro' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'financeiro' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+              style={activeTab === 'financeiro' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
             >
               <DollarSign size={20} />
-              <span className="font-medium">Financeiro</span>
+              {!isCollapsed && <span className="font-medium">Financeiro</span>}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('pdv')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'pdv' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'pdv' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+              style={activeTab === 'pdv' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
             >
               <Store size={20} />
-              <span className="font-medium">Frente de Caixa</span>
+              {!isCollapsed && <span className="font-medium">Frente de Caixa</span>}
             </button>
             {user?.role !== 'colaborador' && appMode === 'full' && (
               <button 
                 type="button"
                 onClick={() => setActiveTab('informativo')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'informativo' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'informativo' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'informativo' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
               >
                 <TrendingUp size={20} />
-                <span className="font-medium">Informativo</span>
+                {!isCollapsed && <span className="font-medium">Informativo</span>}
               </button>
             )}
             {appMode === 'full' && (
               <button 
                 type="button"
                 onClick={() => setActiveTab('inventory')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'inventory' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'inventory' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'inventory' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
               >
                 <Package size={20} />
-                <span className="font-medium">Inventário</span>
+                {!isCollapsed && <span className="font-medium">Inventário</span>}
               </button>
             )}
             {user?.role === 'gestor' && appMode === 'full' && (
               <button 
                 type="button"
                 onClick={() => setActiveTab('team')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'team' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'team' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'team' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
               >
                 <Users size={20} />
-                <span className="font-medium">Gestão de Equipe</span>
+                {!isCollapsed && <span className="font-medium">Gestão de Equipe</span>}
               </button>
             )}
             {user?.role === 'gestor' && appMode === 'full' && (
               <button 
                 type="button"
                 onClick={onShowReportModal}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium text-gray-300 hover:bg-white/5 hover:text-white ${isCollapsed ? 'justify-center px-2' : 'px-4'}`}
               >
                 <FileText size={20} />
-                <span className="font-medium">Relatório</span>
+                {!isCollapsed && <span className="font-medium">Relatório</span>}
+              </button>
+            )}
+            {user?.role === 'gestor' && appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'settings' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'settings' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
+              >
+                <Settings size={20} />
+                {!isCollapsed && <span>Configurações</span>}
               </button>
             )}
             {(installPrompt || isIos) && (
               <button 
                 type="button"
                 onClick={installPrompt ? handleInstall : () => setShowIosInstructions(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+                className={`w-full flex items-center gap-3 py-3 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'}`}
               >
                 <Download size={20} />
-                <span className="font-medium">Instalar App</span>
+                {!isCollapsed && <span className="font-medium">Instalar App</span>}
               </button>
             )}
             {user?.role === 'admin' && appMode === 'full' && (
               <button 
                 type="button"
                 onClick={() => setActiveTab('admin')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'admin' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10'}`}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'admin' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'admin' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
               >
                 <ShieldCheck size={20} />
-                <span className="font-medium">Admin</span>
+                {!isCollapsed && <span className="font-medium">Admin</span>}
               </button>
             )}
             {user?.role === 'gestor' && onSwitchMode && (
               <button 
                 type="button"
                 onClick={onSwitchMode}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+                className={`w-full flex items-center gap-3 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'}`}
               >
                 <ArrowLeftRight size={20} />
-                <span className="font-medium">Trocar Modo</span>
+                {!isCollapsed && <span className="font-medium">Trocar Modo</span>}
               </button>
             )}
           </nav>
@@ -196,10 +231,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button 
             type="button"
             onClick={() => setShowLogoutConfirmation(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all mt-auto"
+            className={`w-full flex items-center gap-3 py-3 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all mt-auto font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'}`}
           >
             <ArrowUpCircle size={20} className="rotate-90" />
-            <span className="font-medium">Sair</span>
+            {!isCollapsed && <span className="font-medium">Sair</span>}
           </button>
         </div>
       </aside>

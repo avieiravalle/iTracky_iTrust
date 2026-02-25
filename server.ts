@@ -41,7 +41,9 @@ function runMigrations(database: Database.Database) {
       store_code TEXT,
       parent_id INTEGER,
       plan TEXT DEFAULT 'Basic',
-      current_token TEXT
+      current_token TEXT,
+      custom_colors TEXT,
+      logo_url TEXT
     );
 
     CREATE TABLE IF NOT EXISTS products (
@@ -118,6 +120,12 @@ function runMigrations(database: Database.Database) {
     if (!tableInfo.some(col => col.name === 'current_token')) {
       database.exec("ALTER TABLE users ADD COLUMN current_token TEXT");
     }
+    if (!tableInfo.some(col => col.name === 'custom_colors')) {
+      database.exec("ALTER TABLE users ADD COLUMN custom_colors TEXT");
+    }
+    if (!tableInfo.some(col => col.name === 'logo_url')) {
+      database.exec("ALTER TABLE users ADD COLUMN logo_url TEXT");
+    }
 
     // Ensure specific admin user exists
     const adminEmail = 'avieiravale@gmail.com';
@@ -187,7 +195,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
     if (err) return res.status(403).json({ error: "Token inválido" });
 
     // SEGURANÇA CRÍTICA: Verificar se o usuário ainda existe e está ativo no banco
-    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name, current_token FROM users WHERE id = ?").get(user.id) as any;
+    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name, current_token, custom_colors, logo_url FROM users WHERE id = ?").get(user.id) as any;
     
     if (!dbUser) return res.status(403).json({ error: "Usuário não encontrado ou excluído" });
     if (dbUser.status !== 'active') return res.status(403).json({ error: "Acesso revogado ou pendente" });
@@ -195,6 +203,11 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
     // SINGLE SESSION: Se for Gestor ou Colaborador, verifica se o token é o mais recente
     if ((dbUser.role === 'gestor' || dbUser.role === 'colaborador') && dbUser.current_token && dbUser.current_token !== token) {
       return res.status(401).json({ error: "Sessão expirada. Você realizou login em outro dispositivo." });
+    }
+
+    // Parse custom_colors se existir
+    if (dbUser.custom_colors && typeof dbUser.custom_colors === 'string') {
+      dbUser.custom_colors = JSON.parse(dbUser.custom_colors);
     }
 
     req.user = dbUser; // Anexa o usuário real do banco à requisição
@@ -688,6 +701,25 @@ export async function createApp() {
         }
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para Atualizar Configurações da Loja (Cores e Logo)
+  app.patch("/api/store-settings", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      const { custom_colors, logo_url } = req.body;
+
+      if (user.role !== 'gestor') {
+        return res.status(403).json({ error: "Apenas gestores podem alterar configurações da loja." });
+      }
+
+      const colorsString = custom_colors ? JSON.stringify(custom_colors) : null;
+      db.prepare("UPDATE users SET custom_colors = ?, logo_url = ? WHERE id = ?").run(colorsString, logo_url, user.id);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

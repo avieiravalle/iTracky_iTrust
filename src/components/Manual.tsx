@@ -12,7 +12,11 @@ import {
   CheckCircle2,
   Clock,
   ScanBarcode,
-  FileText
+  FileText,
+  Users,
+  Settings,
+  ShieldCheck,
+  Printer
 } from 'lucide-react';
 
 export const Manual: React.FC = () => {
@@ -78,11 +82,45 @@ export const Manual: React.FC = () => {
           </div>
         </div>
       )
+    },
+    {
+      title: 'Gestão de Equipe',
+      icon: <Users className="text-indigo-500" size={24} />,
+      content: 'Controle total sobre quem acessa sua loja. Visualize seus colaboradores, bloqueie acessos temporariamente ou remova usuários. Acompanhe também o Log de Auditoria para saber exatamente quem fez o quê no sistema (ex: quem excluiu um produto ou alterou um preço).'
+    },
+    {
+      title: 'Identidade Visual',
+      icon: <Settings className="text-gray-600" size={24} />,
+      content: 'Deixe o sistema com a cara da sua empresa. No menu Configurações, você pode alterar as cores do sistema, escolher entre modo claro/escuro e fazer upload do seu logotipo, que aparecerá no topo do menu e nos relatórios.'
+    },
+    {
+      title: 'Segurança',
+      icon: <ShieldCheck className="text-emerald-600" size={24} />,
+      content: 'Proteção contra login duplicado: para garantir a segurança dos seus dados, o sistema permite apenas uma sessão ativa por usuário. Se você entrar em um novo dispositivo, a sessão anterior será desconectada automaticamente.'
     }
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div id="printable-manual" className="max-w-4xl mx-auto space-y-8 pb-12">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-manual, #printable-manual * { visibility: visible; }
+          #printable-manual { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 2cm; background: white; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
+      <div className="flex justify-end no-print">
+        <button 
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+        >
+          <Printer size={18} />
+          Imprimir Manual
+        </button>
+      </div>
+
       <header className="text-center space-y-2">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4 shadow-xl shadow-black/10">
           <BookOpen className="text-white" size={32} />

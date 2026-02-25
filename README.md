@@ -1,4 +1,4 @@
-# Sistema de Controle de Estoque & PDV
+# iTrust: A base sólida para o crescimento do seu negócio.
 
 Sistema completo para gestão de estoque, frente de caixa (PDV) e controle financeiro, desenvolvido com React e TypeScript. Focado em agilidade para pequenos e médios comércios.
 

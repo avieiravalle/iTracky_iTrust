@@ -211,6 +211,11 @@ export const Auth: React.FC<AuthProps> = ({
               <button type="submit" className="w-full px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20">Redefinir Senha</button>
             </form>
           )}
+          <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+            <p className="text-xs text-[#2D3436]/70 font-medium">
+              iTrust ERP – Gestão inteligente, confiança absoluta.
+            </p>
+          </div>
         </motion.div>
       </div>
     );
@@ -301,11 +306,14 @@ export const Auth: React.FC<AuthProps> = ({
             <button 
               type="button"
               onClick={onAdminClick}
-              className="text-xs font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-2 justify-center mx-auto"
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-2 justify-center mx-auto mb-4"
             >
               <ShieldCheck size={14} />
               Entrar como Adm
             </button>
+            <p className="text-xs text-[#2D3436]/70 font-medium">
+              iTrust ERP – Gestão inteligente, confiança absoluta.
+            </p>
           </div>
         </motion.div>
       </div>
@@ -494,6 +502,11 @@ export const Auth: React.FC<AuthProps> = ({
         <p className="mt-6 text-center text-sm text-gray-500">
           Já tem uma conta? <button type="button" onClick={() => { setScreen('login'); onClearError?.(); }} className="text-blue-600 font-bold hover:underline">Fazer Login</button>
         </p>
+        <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+          <p className="text-xs text-[#2D3436]/70 font-medium">
+            iTrust ERP – Gestão inteligente, confiança absoluta.
+          </p>
+        </div>
       </motion.div>
     </div>
   );
