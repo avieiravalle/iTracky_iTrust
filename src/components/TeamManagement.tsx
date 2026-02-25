@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Shield, ToggleLeft, ToggleRight, Trash2, Loader2, BookOpen, Clock, Search } from 'lucide-react';
+import { User, Shield, ToggleLeft, ToggleRight, Trash2, Loader2, BookOpen, Clock, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Tipos que estariam em src/types.ts
 interface Collaborator {
@@ -27,6 +27,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = () => {
   const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | null>(null);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(4);
 
   const fetchCollaborators = async () => {
     setIsLoading(true);
@@ -156,13 +158,19 @@ export const TeamManagement: React.FC<TeamManagementProps> = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Coluna da Lista de Colaboradores */}
-        <div className="lg:col-span-1 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm h-fit">
-          <h3 className="font-bold text-lg mb-4 px-2 dark:text-white">Colaboradores ({collaborators.length})</h3>
+        <div className="lg:col-span-1 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm h-fit">
+          <div className="p-4 border-b border-gray-100 dark:border-zinc-800">
+            <h3 className="font-bold text-lg dark:text-white">Colaboradores ({collaborators.length})</h3>
+          </div>
           {isLoading ? (
             <div className="flex justify-center items-center h-48"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
           ) : (
-            <div className="space-y-2">
-              {collaborators.length > 0 ? collaborators.map(collab => (
+            <>
+            <div className="p-4 space-y-2">
+              {collaborators.length > 0 ? (
+                collaborators
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map(collab => (
                 <button
                   key={collab.id}
                   onClick={() => handleSelectCollaborator(collab)}
@@ -179,10 +187,32 @@ export const TeamManagement: React.FC<TeamManagementProps> = () => {
                   </div>
                   <div className={`w-2.5 h-2.5 rounded-full ${collab.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
                 </button>
-              )) : (
+              ))) : (
                 <p className="text-center text-sm text-gray-400 py-10">Nenhum colaborador cadastrado.</p>
               )}
             </div>
+            {Math.ceil(collaborators.length / itemsPerPage) > 1 && (
+              <div className="p-2 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <label htmlFor="itemsPerPageTeam" className="text-[10px] text-gray-500 dark:text-gray-400">Por pág:</label>
+                  <select
+                      id="itemsPerPageTeam"
+                      value={itemsPerPage}
+                      onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                      className="bg-transparent border-none rounded-md text-xs font-bold focus:ring-0 outline-none py-0.5 dark:bg-zinc-900"
+                  >
+                      <option value={4}>4</option>
+                      <option value={10}>10</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50"><ChevronLeft size={16} /></button>
+                  <span className="text-xs font-bold">{currentPage} / {Math.ceil(collaborators.length / itemsPerPage)}</span>
+                  <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage * itemsPerPage >= collaborators.length} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50"><ChevronRight size={16} /></button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
 

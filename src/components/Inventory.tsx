@@ -16,7 +16,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
   const [savingPrice, setSavingPrice] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const handlePriceChange = (productId: number, value: string) => {
     setEditingPrice(prev => ({ ...prev, [productId]: value }));
@@ -65,11 +65,11 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, itemsPerPage]);
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
-      <div className="p-4 md:p-6 border-bottom border-gray-50 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="p-4 md:p-6 border-b border-gray-50 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
           <input 
@@ -79,6 +79,18 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
             onChange={e => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border-none rounded-xl text-sm w-full focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white dark:placeholder-gray-500"
           />
+        </div>
+        <div className="flex items-center gap-2 self-end md:self-center">
+            <label htmlFor="itemsPerPageInv" className="text-xs text-gray-500 dark:text-gray-400">Itens por pág:</label>
+            <select
+                id="itemsPerPageInv"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="bg-gray-50 dark:bg-zinc-800 border-none rounded-md text-xs font-bold focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none py-1"
+            >
+                <option value={4}>4</option>
+                <option value={10}>10</option>
+            </select>
         </div>
       </div>
       <div className="overflow-x-auto hidden md:block">

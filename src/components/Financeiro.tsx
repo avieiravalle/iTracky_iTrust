@@ -7,7 +7,9 @@ import {
   Package, 
   ArrowRight,
   Wallet,
-  Plus
+  Plus,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Receivable, Stats, User } from '../types';
 import { motion } from 'motion/react';
@@ -24,9 +26,23 @@ interface FinanceiroProps {
 export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMarkAsPaid, onNewSale, user }) => {
   const isColaborador = user?.role === 'colaborador';
   const [partialPayment, setPartialPayment] = React.useState<{ id: number, amount: string } | null>(null);
-  const totalReceivable = receivables.reduce((acc, r) => acc + (r.unit_cost * r.quantity - (r.amount_paid || 0)), 0);
-  const totalExpectedProfit = receivables.reduce((acc, r) => acc + r.expected_profit, 0);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(4);
 
+  // Lógica de Paginação
+  const totalPages = Math.ceil(receivables.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentReceivables = receivables.slice(startIndex, startIndex + itemsPerPage);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
   const handlePartialSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (partialPayment && partialPayment.amount) {
@@ -34,6 +50,9 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
       setPartialPayment(null);
     }
   };
+
+  const totalReceivable = receivables.reduce((acc, r) => acc + (r.unit_cost * r.quantity - (r.amount_paid || 0)), 0);
+  const totalExpectedProfit = receivables.reduce((acc, r) => acc + r.expected_profit, 0);
 
   return (
     <div className="space-y-6">
@@ -87,6 +106,20 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
               {receivables.length} Pendentes
             </span>
           </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <label htmlFor="itemsPerPageFin" className="text-xs text-gray-500 dark:text-gray-400">Itens por pág:</label>
+              <select
+                  id="itemsPerPageFin"
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="bg-gray-50 dark:bg-zinc-800 border-none rounded-md text-xs font-bold focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none py-1"
+              >
+                  <option value={4}>4</option>
+                  <option value={10}>10</option>
+              </select>
+            </div>
+          </div>
           
           <button 
             type="button"
@@ -111,7 +144,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
-              {receivables.map((r) => (
+              {currentReceivables.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -193,7 +226,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
                   </td>
                 </tr>
               ))}
-              {receivables.length === 0 && (
+              {currentReceivables.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-600">
@@ -207,9 +240,37 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
           </table>
         </div>
 
+        {/* Controles de Paginação */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-50 dark:border-zinc-800 flex items-center justify-between">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {startIndex + 1}-{Math.min(startIndex + itemsPerPage, receivables.length)} de {receivables.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Mobile Card Layout */}
         <div className="md:hidden divide-y divide-gray-50 dark:divide-zinc-800">
-          {receivables.map((r) => (
+          {currentReceivables.map((r) => (
             <div key={r.id} className="p-4 space-y-4">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
@@ -288,7 +349,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
               </div>
             </div>
           ))}
-          {receivables.length === 0 && (
+          {currentReceivables.length === 0 && (
             <div className="p-12 text-center text-gray-400">
               <p>Nenhuma conta pendente.</p>
             </div>

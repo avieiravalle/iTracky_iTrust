@@ -1131,6 +1131,7 @@ export async function createApp() {
         performance: {
           averageTicket: averageTicket,
           leadProduct: leadProduct || { name: 'N/A', quantitySold: 0 },
+          grossProfit: grossProfit,
           contributionMargin: contributionMargin,
           totalSalesTransactions: salesSummary.totalSalesTransactions,
         },

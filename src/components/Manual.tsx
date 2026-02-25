@@ -13,6 +13,7 @@ import {
   Clock,
   ScanBarcode,
   FileText,
+  Lightbulb,
   Users,
   Settings,
   ShieldCheck,
@@ -25,6 +26,11 @@ export const Manual: React.FC = () => {
       title: 'Dashboard (Visão Geral)',
       icon: <LayoutDashboard className="text-blue-500" size={24} />,
       content: 'O coração do seu negócio. Aqui você vê o valor total do seu patrimônio em estoque, o lucro já realizado (vendas pagas) e o lucro que ainda tem a receber. O gráfico de evolução permite acompanhar o crescimento mensal nos últimos 3 ou 6 meses.'
+    },
+    {
+      title: 'Radar de Oportunidades (IA)',
+      icon: <Lightbulb className="text-cyan-500" size={24} />,
+      content: 'No seu Dashboard, clique em "Dicas iTrust" para abrir o Radar. Nossa inteligência artificial analisa seus dados de vendas e estoque para fornecer 3 dicas práticas e acionáveis, como sugestões de combos, promoções para girar estoque e estratégias para dias de baixo movimento.'
     },
     {
       title: 'Inventário (Estoque)',
@@ -44,7 +50,17 @@ export const Manual: React.FC = () => {
     {
       title: 'Relatório de Fechamento',
       icon: <FileText className="text-blue-500" size={24} />,
-      content: 'Gere um relatório completo para qualquer período. Selecione as datas de início e fim para visualizar um resumo detalhado de faturamento, custos, lucro, produtos mais vendidos e mais. Você pode imprimir ou salvar como PDF.'
+      content: (
+        <div className="space-y-2">
+          <p>Gere um resumo detalhado para qualquer período. Ele é dividido em:</p>
+          <ul className="list-disc list-inside space-y-1 text-xs pl-2">
+            <li><strong>Visão Financeira:</strong> Mostra o Faturamento Bruto, o que entrou no caixa (Recebimentos), o que foi gasto com compras (Contas a Pagar) e o Saldo Líquido.</li>
+            <li><strong>Movimentação de Estoque:</strong> Detalha as entradas e saídas de produtos, além do Custo da Mercadoria Vendida (CMV).</li>
+            <li><strong>KPIs de Performance:</strong> Apresenta indicadores chave como Ticket Médio, Margem de Contribuição e o seu Produto Carro-Chefe no período.</li>
+          </ul>
+          <p className="pt-1">Você pode imprimir o relatório ou salvá-lo como PDF.</p>
+        </div>
+      )
     },
     {
       title: 'Gestão Financeira',
@@ -108,6 +124,11 @@ export const Manual: React.FC = () => {
           #printable-manual, #printable-manual * { visibility: visible; }
           #printable-manual { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 2cm; background: white; }
           .no-print { display: none !important; }
+          .print-avoid-break { 
+            break-inside: avoid; 
+            page-break-inside: avoid;
+          }
+          .print-single-column { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -129,9 +150,9 @@ export const Manual: React.FC = () => {
         <p className="text-gray-500">Aprenda a extrair o máximo do seu sistema de gestão.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print-single-column">
         {sections.map((section, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow print-avoid-break">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-gray-50 rounded-2xl">
                 {section.icon}

@@ -22,6 +22,7 @@ interface InformativoProps {
 
 export const Informativo: React.FC<InformativoProps> = ({ productStats, user, darkMode }) => {
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(10);
   const [performanceItemsCount, setPerformanceItemsCount] = React.useState<4 | 10>(4);
   const chartData = productStats.slice(0, 5).map(stat => ({
     name: stat.name,
@@ -31,7 +32,6 @@ export const Informativo: React.FC<InformativoProps> = ({ productStats, user, da
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
   // Lógica de Paginação
-  const itemsPerPage = 10;
   const totalPages = Math.ceil(productStats.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = productStats.slice(startIndex, startIndex + itemsPerPage);
@@ -41,6 +41,10 @@ export const Informativo: React.FC<InformativoProps> = ({ productStats, user, da
       setCurrentPage(page);
     }
   };
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
 
   return (
     <div className="space-y-6">
@@ -135,10 +139,22 @@ export const Informativo: React.FC<InformativoProps> = ({ productStats, user, da
 
       {/* Tabela Detalhada de Lucratividade */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
-        <div className="p-6 border-b border-gray-50 dark:border-zinc-800">
+        <div className="p-6 border-b border-gray-50 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
             <DollarSign className="text-amber-500" size={20} />
             <h3 className="font-bold text-lg dark:text-white">Detalhamento de Lucratividade</h3>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <label htmlFor="itemsPerPageInfo" className="text-xs text-gray-500 dark:text-gray-400">Itens por pág:</label>
+            <select
+                id="itemsPerPageInfo"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="bg-gray-50 dark:bg-zinc-800 border-none rounded-md text-xs font-bold focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none py-1"
+            >
+                <option value={4}>4</option>
+                <option value={10}>10</option>
+            </select>
           </div>
         </div>
         <div className="overflow-x-auto">

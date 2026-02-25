@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Clock, Ban, Trash2, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
+import { User, Clock, Ban, Trash2, AlertTriangle, Loader2, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Collaborator {
   id: string;
@@ -15,6 +15,8 @@ export function AccessControlPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [userToDelete, setUserToDelete] = useState<Collaborator | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(4);
 
   // Buscar colaboradores da API ao carregar
   useEffect(() => {
@@ -90,6 +92,19 @@ export function AccessControlPanel() {
     }
   };
 
+  // Lógica de Paginação
+  const totalPages = Math.ceil(collaborators.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentCollaborators = collaborators.slice(startIndex, startIndex + itemsPerPage);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  useEffect(() => { setCurrentPage(1); }, [itemsPerPage]);
+
   return (
     <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm">
       <div className="flex justify-between items-center mb-6">
@@ -97,9 +112,21 @@ export function AccessControlPanel() {
           <User className="w-5 h-5" />
           Controle de Acessos da Equipe
         </h2>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm font-bold transition-colors">
-          Convidar Colaborador
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="itemsPerPageAccess" className="text-xs text-gray-500 dark:text-gray-400">Itens por pág:</label>
+            <select
+                id="itemsPerPageAccess"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="bg-gray-50 dark:bg-zinc-800 border-none rounded-md text-xs font-bold focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none py-1"
+            >
+                <option value={4}>4</option>
+                <option value={10}>10</option>
+            </select>
+          </div>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm font-bold transition-colors">Convidar Colaborador</button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -122,7 +149,7 @@ export function AccessControlPanel() {
               <tr>
                 <td colSpan={5} className="py-8 text-center text-gray-500">Nenhum colaborador encontrado.</td>
               </tr>
-            ) : collaborators.map((collab) => (
+            ) : currentCollaborators.map((collab) => (
               <tr key={collab.id} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                 <td className="py-3 font-bold text-gray-800 dark:text-white">{collab.name}</td>
                 <td className="py-3 text-gray-600 dark:text-gray-400">{collab.email}</td>
@@ -166,6 +193,31 @@ export function AccessControlPanel() {
           </tbody>
         </table>
       </div>
+      
+      {totalPages > 1 && (
+        <div className="pt-4 mt-4 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {startIndex + 1}-{Math.min(startIndex + itemsPerPage, collaborators.length)} de {collaborators.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{currentPage} / {totalPages}</span>
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Confirmação de Exclusão */}
       {userToDelete && (
