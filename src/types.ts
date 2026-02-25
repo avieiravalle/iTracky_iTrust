@@ -1,12 +1,15 @@
 export interface Product {
   id: number;
+  user_id: number;
   name: string;
   sku: string;
   min_stock: number;
   current_stock: number;
   average_cost: number;
-  expiry_date?: string;
+  sale_price: number; // <-- Adicione esta linha
+  expiry_date: string | null;
 }
+
 
 export interface User {
   id: number;

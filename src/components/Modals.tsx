@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product } from '../types';
+import { Product, User } from '../types';
 import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X, Search, FileText } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { PeriodClosingReport } from './PeriodClosingReport';
@@ -15,6 +15,7 @@ interface ModalsProps {
   products: Product[];
   onAddProduct: (data: { name: string, sku: string, min_stock: number }) => Promise<void> | void;
   onTransaction: (e: React.FormEvent<HTMLFormElement>) => Promise<void> | void;
+  user: User | null;
 }
 
 export const Modals: React.FC<ModalsProps> = ({
@@ -26,7 +27,8 @@ export const Modals: React.FC<ModalsProps> = ({
   setShowReportModal,
   products,
   onAddProduct,
-  onTransaction
+  onTransaction,
+  user,
 }) => {
   const [sku, setSku] = useState('');
   const [skuError, setSkuError] = useState('');
@@ -36,6 +38,8 @@ export const Modals: React.FC<ModalsProps> = ({
   const [transactionStatus, setTransactionStatus] = useState('PAID');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
+  const [suggestedSalePrice, setSuggestedSalePrice] = useState('');
+  const [exitSalePrice, setExitSalePrice] = useState('');
   const [searchSku, setSearchSku] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [prefilledSku, setPrefilledSku] = useState('');
@@ -62,6 +66,18 @@ export const Modals: React.FC<ModalsProps> = ({
       setSearchSku('');
       setSearchTerm('');
       setIsScanning(false);
+      // Limpar preços ao abrir modal
+      setSuggestedSalePrice('');
+      setExitSalePrice('');
+
+      if (showTransaction.productId) {
+        const product = products.find(p => p.id === showTransaction.productId);
+        if (product) {
+          if (showTransaction.type === 'ENTRY') {
+            setSuggestedSalePrice(product.sale_price > 0 ? product.sale_price.toString() : '');
+          }
+        }
+      }
     }
   }, [showTransaction]);
 
@@ -168,6 +184,13 @@ export const Modals: React.FC<ModalsProps> = ({
     else {
       const p = products.find(prod => prod.id.toString() === val);
       if (p) setSearchSku(p.sku);
+      // Preencher preços ao selecionar manualmente
+      if (p && showTransaction?.type === 'ENTRY') {
+        setSuggestedSalePrice(p.sale_price > 0 ? p.sale_price.toString() : '');
+      } else if (p && showTransaction?.type === 'EXIT') {
+        const defaultPrice = p.sale_price > 0 ? p.sale_price : (p.average_cost * 1.5);
+        setExitSalePrice(defaultPrice > 0 ? defaultPrice.toFixed(2) : '');
+      }
     }
   };
 
@@ -373,15 +396,34 @@ export const Modals: React.FC<ModalsProps> = ({
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">
                     {showTransaction.type === 'ENTRY' ? 'Custo (R$)' : 'Preço (R$)'}
                   </label>
-                  <input name="unit_cost" data-testid="input-unit-cost" type="number" inputMode="decimal" step="0.01" required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0,00" />
+                  <input 
+                    name="unit_cost" 
+                    data-testid="input-unit-cost" 
+                    type="number" 
+                    inputMode="decimal" 
+                    step="0.01" 
+                    required 
+                    value={showTransaction.type === 'EXIT' ? exitSalePrice : undefined}
+                    onChange={showTransaction.type === 'EXIT' ? (e) => setExitSalePrice(e.target.value) : undefined}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" 
+                    placeholder="0,00" 
+                  />
                 </div>
               </div>
 
               {showTransaction.type === 'ENTRY' && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Data de Validade (Opcional)</label>
-                  <input name="expiry_date" data-testid="input-expiry-date" type="date" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
-                </div>
+                <>
+                  {user?.role === 'gestor' && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Preço de Venda Sugerido (R$)</label>
+                      <input name="sale_price" type="number" inputMode="decimal" step="0.01" value={suggestedSalePrice} onChange={e => setSuggestedSalePrice(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="Ex: 29,90" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Data de Validade (Opcional)</label>
+                    <input name="expiry_date" data-testid="input-expiry-date" type="date" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
+                  </div>
+                </>
               )}
 
               {showTransaction.type === 'EXIT' && (

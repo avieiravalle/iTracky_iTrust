@@ -51,6 +51,7 @@ function runMigrations(database: Database.Database) {
       min_stock INTEGER DEFAULT 5,
       current_stock INTEGER DEFAULT 0,
       average_cost REAL DEFAULT 0,
+      sale_price REAL DEFAULT 0,
       expiry_date TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE(user_id, sku)
@@ -104,6 +105,10 @@ function runMigrations(database: Database.Database) {
     }
     if (!tableInfo.some(col => col.name === 'parent_id')) {
       database.exec("ALTER TABLE users ADD COLUMN parent_id INTEGER");
+    }
+    const productInfo = database.prepare("PRAGMA table_info(products)").all() as any[];
+    if (!productInfo.some(col => col.name === 'sale_price')) {
+      database.exec("ALTER TABLE products ADD COLUMN sale_price REAL DEFAULT 0");
     }
     const transactionInfo = database.prepare("PRAGMA table_info(transactions)").all() as any[];
     if (!transactionInfo.some(col => col.name === 'payment_method')) {
@@ -584,7 +589,7 @@ export async function createApp() {
   });
 
   app.post("/api/transactions", authenticateToken, (req: AuthRequest, res) => {
-    const { product_id, type, quantity, unit_cost, status, client_name, expiry_date } = req.body;
+    const { product_id, type, quantity, unit_cost, status, client_name, expiry_date, sale_price } = req.body;
     
     try {
       db.transaction(() => {
@@ -597,8 +602,11 @@ export async function createApp() {
           const newPurchaseValue = quantity * (unit_cost || 0);
           const newAverageCost = (currentTotalValue + newPurchaseValue) / newTotalStock;
 
-          db.prepare("UPDATE products SET current_stock = ?, average_cost = ?, expiry_date = ? WHERE id = ?")
-            .run(newTotalStock, newAverageCost, expiry_date || product.expiry_date, product_id);
+          // Se um novo sale_price for fornecido, atualize-o. Caso contrário, mantenha o antigo.
+          const finalSalePrice = (sale_price !== undefined && sale_price !== null && sale_price > 0) ? sale_price : product.sale_price;
+
+          db.prepare("UPDATE products SET current_stock = ?, average_cost = ?, expiry_date = ?, sale_price = ? WHERE id = ?")
+            .run(newTotalStock, newAverageCost, expiry_date || product.expiry_date, finalSalePrice, product_id);
           
           db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, amount_paid, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .run(product_id, type, quantity, unit_cost, product.average_cost, 'PAID', unit_cost * quantity, expiry_date || null);
@@ -625,6 +633,44 @@ export async function createApp() {
     } catch (error: any) {
       console.error("Error processing transaction:", error);
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/products/:id/price", authenticateToken, (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const { sale_price } = req.body;
+    const user = req.user;
+
+    if (user.role !== 'gestor') {
+        return res.status(403).json({ error: "Apenas gestores podem alterar o preço de venda." });
+    }
+
+    if (sale_price === undefined || sale_price === null || isNaN(parseFloat(sale_price))) {
+        return res.status(400).json({ error: "Preço de venda inválido." });
+    }
+
+    try {
+        const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+        const product = db.prepare("SELECT user_id, name FROM products WHERE id = ?").get(id) as any;
+
+        if (!product) {
+            return res.status(404).json({ error: "Produto não encontrado." });
+        }
+
+        if (product.user_id !== ownerId) {
+            return res.status(403).json({ error: "Acesso negado a este produto." });
+        }
+
+        const info = db.prepare("UPDATE products SET sale_price = ? WHERE id = ?").run(sale_price, id);
+
+        if (info.changes > 0) {
+            logAudit(user.id, user.name, 'UPDATE_SALE_PRICE', `Preço de venda do produto '${product.name}' (ID ${id}) atualizado para ${sale_price}`);
+            res.json({ success: true, sale_price });
+        } else {
+            res.status(404).json({ error: "Produto não encontrado ou nenhuma alteração foi feita." });
+        }
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
   });
 

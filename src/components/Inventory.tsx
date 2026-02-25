@@ -1,15 +1,48 @@
-import React from 'react';
-import { Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Loader2 } from 'lucide-react';
 import { Product, User } from '../types';
 import { formatBRL } from '../utils/format';
 
 interface InventoryProps {
   products: Product[];
   user: User | null;
+  onUpdateSalePrice: (productId: number, newPrice: number) => Promise<void>;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ products, user }) => {
+export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSalePrice }) => {
   const isColaborador = user?.role === 'colaborador';
+  const [editingPrice, setEditingPrice] = useState<Record<number, string>>({});
+  const [savingPrice, setSavingPrice] = useState<number | null>(null);
+
+  const handlePriceChange = (productId: number, value: string) => {
+    setEditingPrice(prev => ({ ...prev, [productId]: value }));
+  };
+
+  const handleSavePrice = async (productId: number) => {
+    const newPriceStr = editingPrice[productId];
+    const originalProduct = products.find(p => p.id === productId);
+
+    // Se não há mudança ou o campo de edição não existe para este ID, não faz nada.
+    if (newPriceStr === undefined || !originalProduct) return;
+
+    const newPrice = parseFloat(newPriceStr);
+
+    // Se o preço for inválido ou não mudou, reverte para o valor original e limpa o estado de edição.
+    if (isNaN(newPrice) || newPrice === originalProduct.sale_price) {
+      const { [productId]: _, ...rest } = editingPrice;
+      setEditingPrice(rest);
+      return;
+    }
+
+    setSavingPrice(productId);
+    await onUpdateSalePrice(productId, newPrice);
+    setSavingPrice(null);
+    
+    // Limpa o estado de edição para este ID após salvar.
+    const { [productId]: _, ...rest } = editingPrice;
+    setEditingPrice(rest);
+  };
+
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
       <div className="p-4 md:p-6 border-bottom border-gray-50 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -31,6 +64,7 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user }) => {
               <th className="px-6 py-4 text-center">Validade</th>
               <th className="px-6 py-4">Estoque Atual</th>
               {!isColaborador && <th className="px-6 py-4">Custo Médio</th>}
+              {!isColaborador && <th className="px-6 py-4">Preço Venda</th>}
               {!isColaborador && <th className="px-6 py-4">Valor Total</th>}
               <th className="px-6 py-4">Status</th>
             </tr>
@@ -59,6 +93,24 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user }) => {
                 {!isColaborador && (
                   <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                     {formatBRL(p.average_cost || 0)}
+                  </td>
+                )}
+                {!isColaborador && (
+                  <td className="px-6 py-2">
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        disabled={isColaborador}
+                        value={editingPrice[p.id] ?? p.sale_price}
+                        onChange={(e) => handlePriceChange(p.id, e.target.value)}
+                        onBlur={() => handleSavePrice(p.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        className="w-28 bg-gray-50 dark:bg-zinc-800 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 rounded-lg py-1.5 pl-8 pr-2 text-right font-medium text-sm outline-none transition-all disabled:bg-transparent disabled:border-transparent disabled:cursor-not-allowed"
+                      />
+                      {savingPrice === p.id && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-blue-500" />}
+                    </div>
                   </td>
                 )}
                 {!isColaborador && (
@@ -105,14 +157,25 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user }) => {
               </div>
               {!isColaborador && (
                 <div className="bg-gray-50 dark:bg-zinc-800/50 p-2 rounded-xl">
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Custo Médio</p>
-                  <p className="text-xs font-bold text-gray-900 dark:text-white">{formatBRL(p.average_cost || 0)}</p>
+                  <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Preço Venda</p>
+                  <div className="relative">
+                    <span className="absolute left-1 top-1/2 -translate-y-1/2 text-gray-400 text-xs">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      disabled={isColaborador}
+                      value={editingPrice[p.id] ?? p.sale_price}
+                      onChange={(e) => handlePriceChange(p.id, e.target.value)}
+                      onBlur={() => handleSavePrice(p.id)}
+                      className="w-full bg-transparent text-right font-bold text-xs text-gray-900 dark:text-white outline-none pl-5 pr-1"
+                    />
+                  </div>
                 </div>
               )}
               {!isColaborador && (
                 <div className="bg-gray-50 dark:bg-zinc-800/50 p-2 rounded-xl">
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Total</p>
-                  <p className="text-xs font-bold text-gray-900 dark:text-white">{formatBRL((p.current_stock || 0) * (p.average_cost || 0))}</p>
+                  <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Custo Médio</p>
+                  <p className="text-xs font-bold text-gray-900 dark:text-white">{formatBRL(p.average_cost || 0)}</p>
                 </div>
               )}
             </div>

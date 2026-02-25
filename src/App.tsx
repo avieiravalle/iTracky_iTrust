@@ -264,6 +264,7 @@ export default function App() {
       quantity: Number(formData.get('quantity')),
       unit_cost: Number(formData.get('unit_cost')),
       status: formData.get('status'),
+      sale_price: formData.get('sale_price') ? Number(formData.get('sale_price')) : undefined,
       client_name: formData.get('client_name'),
       expiry_date: formData.get('expiry_date'),
     };
@@ -280,6 +281,32 @@ export default function App() {
     } else {
       const err = await res.json();
       alert(err.error || "Erro na transação");
+    }
+  };
+
+  const handleUpdateSalePrice = async (productId: number, newPrice: number) => {
+    if (!token) {
+      setToast({ message: 'Sessão expirada. Faça login novamente.', type: 'error' });
+      return;
+    }
+
+    try {
+      const res = await authFetch(`/api/products/${productId}/price`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sale_price: newPrice }),
+      });
+
+      if (res.ok) {
+        fetchData(); 
+        setToast({ message: 'Preço de venda atualizado!', type: 'success' });
+      } else {
+        const err = await res.json();
+        setToast({ message: err.error || 'Erro ao atualizar preço', type: 'error' });
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ message: 'Erro de conexão ao atualizar preço', type: 'error' });
     }
   };
 
@@ -509,7 +536,7 @@ export default function App() {
                 user={user}
               />
             )}
-            {activeTab === 'inventory' && <Inventory products={products} user={user} />}
+            {activeTab === 'inventory' && <Inventory products={products} user={user} onUpdateSalePrice={handleUpdateSalePrice} />}
             {activeTab === 'informativo' && <Informativo productStats={productStats} />}
             {activeTab === 'financeiro' && (
               <Financeiro 
@@ -543,6 +570,7 @@ export default function App() {
         products={products}
         onAddProduct={handleAddProduct}
         onTransaction={handleTransaction}
+        user={user}
       />
 
       <AnimatePresence>

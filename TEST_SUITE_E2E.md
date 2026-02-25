@@ -129,6 +129,20 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - O produto é visualmente destacado (ex: cor vermelha) na lista de produtos.
   - Um alerta no Dashboard pode indicar "Produtos com estoque baixo".
 
+### Cenário 2.4: Atualização de Preço de Venda no Inventário
+- **Descrição**: Um gestor atualiza o preço de venda de um produto diretamente da lista de inventário.
+- **Passos**:
+  1. Fazer login como Gestor.
+  2. Navegar para a seção "Inventário".
+  3. Localizar um produto.
+  4. Clicar no campo da coluna "Preço Venda" e digitar um novo valor.
+  5. Pressionar "Enter" ou clicar fora do campo.
+- **Validações E2E**:
+  - Uma mensagem de sucesso ("Preço de venda atualizado!") é exibida brevemente.
+  - O novo preço é mantido no campo de input.
+  - No banco de dados, o campo `sale_price` do produto é atualizado com o novo valor.
+  - Ao adicionar este produto no PDV, o novo preço é utilizado como padrão no carrinho.
+
 ---
 
 ## 3. Testes de Movimentações (Entrada/Saída)
@@ -225,6 +239,20 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 - **Validações E2E**:
   - O produto é automaticamente adicionado ao carrinho (PDV) ou selecionado no formulário (Entrada).
   - Se o SKU não existir, o sistema deve sugerir o cadastro (Entrada) ou exibir um alerta (PDV).
+
+### Cenário 4.4: Venda com Desconto (PDV)
+- **Descrição**: Realizar uma venda no PDV aplicando um desconto em porcentagem.
+- **Descrição**: Utilizar o scanner de código de barras para adicionar produtos.
+- **Passos**:
+  1. Fazer login.
+  2. Navegar para PDV ou Entrada de Estoque.
+  3. (Simular leitura de código de barras - pode ser via input manual do SKU em ambiente de teste).
+  4. Ler um SKU de produto existente.
+- **Validações E2E**:
+  - O valor do "Total a Pagar" reflete o subtotal menos o desconto percentual.
+  - Após a venda, as transações são registradas no banco de dados com o `unit_cost` (preço de venda) já com o desconto aplicado.
+  - O lucro da venda, calculado no backend, deve ser baseado no preço final com desconto.
+  - O campo de desconto é limpo para a próxima venda.
 
 ---
 

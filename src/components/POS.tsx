@@ -24,9 +24,8 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'credit' | 'debit' | 'pix'>('money');
   const [clientName, setClientName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [amountReceived, setAmountReceived] = useState('');
-  const [discount, setDiscount] = useState(0);
+  const [discountPercentage, setDiscountPercentage] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<'PAID' | 'PENDING'>('PAID');
   const inputRef = useRef<HTMLInputElement>(null);
   const listEndRef = useRef<HTMLTableRowElement>(null);
@@ -94,8 +93,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
       // ESC: Cancelar / Limpar Carrinho (se não estiver no modal)
       if (e.key === 'Escape' && !showPaymentModal) {
         if (cart.length > 0 && confirm('Deseja cancelar a venda atual e limpar a tela?')) {
-          setCart([]);
-          setDiscount(0);
+          setCart([]);          setDiscountPercentage('');
           setClientName('');
         }
       }
@@ -103,19 +101,6 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart, showPaymentModal]);
-
-  // Efeito para filtrar sugestões enquanto digita
-  useEffect(() => {
-    if (barcode.length > 1) {
-      const matches = products.filter(p => 
-        p.name.toLowerCase().includes(barcode.toLowerCase()) || 
-        p.sku.toLowerCase().includes(barcode.toLowerCase())
-      ).slice(0, 5); // Limita a 5 sugestões
-      setSuggestions(matches);
-    } else {
-      setSuggestions([]);
-    }
-  }, [barcode, products]);
 
   // 2. Lógica de Adicionar ao Carrinho (Scanner ou Manual)
   const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -126,16 +111,11 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
 
       // 1. Busca exata por SKU ou Código de Barras (Prioridade para Scanner)
       let product = products.find(p => p.sku.toLowerCase() === barcode.toLowerCase() || p.name.toLowerCase() === barcode.toLowerCase());
-      
-      // 2. Se não achar exato, mas tem sugestões visíveis, pega a primeira (Facilita digitação manual)
-      if (!product && suggestions.length > 0) {
-        product = suggestions[0];
-      }
 
       if (product) {
         addToCart(product);
         setBarcode('');
-        // setSuggestions([]) será limpo pelo useEffect quando barcode for vazio
+
         setErrorMsg('');
       } else {
         setErrorMsg(`Produto não encontrado: ${barcode}`);
@@ -162,7 +142,8 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
             : item
         );
       }
-      return [...prev, { product, quantity: 1, unitPrice: product.average_cost * 1.5 }];
+      const defaultSalePrice = product.sale_price > 0 ? product.sale_price : product.average_cost * 1.5;
+      return [...prev, { product, quantity: 1, unitPrice: defaultSalePrice }];
     });
   };
 
@@ -205,7 +186,9 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
       return acc + (item.unitPrice * item.quantity);
     }, 0);
     
-    return Math.max(0, subtotal - discount);
+    const discountValue = (subtotal * (parseFloat(discountPercentage) || 0)) / 100;
+    
+    return Math.max(0, subtotal - discountValue);
   };
 
   const handleCheckout = async () => {
@@ -219,11 +202,14 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     }
 
     try {
-      const itemsPayload = cart.map(item => ({
-        product_id: item.product.id,
-        quantity: item.quantity,
-        unit_price: item.unitPrice
-      }));
+      const itemsPayload = cart.map(item => {
+        const discountedUnitPrice = item.unitPrice * (1 - ((parseFloat(discountPercentage) || 0) / 100));
+        return {
+          product_id: item.product.id,
+          quantity: item.quantity,
+          unit_price: discountedUnitPrice
+        };
+      });
 
       const res = await fetch('/api/pos/checkout', {
         method: 'POST',
@@ -246,7 +232,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         setShowPaymentModal(false);
         setClientName('');
         setAmountReceived('');
-        setDiscount(0);
+        setDiscountPercentage('');
         setTransactionStatus('PAID');
         onCheckoutComplete();
       } else {
@@ -292,33 +278,6 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
               className="w-full pl-14 pr-4 py-3 lg:py-5 text-lg lg:text-2xl font-bold bg-[#202024] border-2 border-zinc-700 rounded-xl focus:border-[#0055FF] focus:ring-4 focus:ring-[#0055FF]/20 outline-none text-white placeholder-zinc-600 transition-all shadow-inner"
               autoComplete="off"
             />
-            {/* Sugestões */}
-            <AnimatePresence>
-              {suggestions.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 right-0 bg-[#202024] shadow-2xl rounded-xl border border-zinc-700 mt-2 overflow-hidden z-30"
-                >
-                  {suggestions.map((product, index) => (
-                    <button
-                      key={product.id}
-                      onClick={() => selectSuggestion(product)}
-                      className={`w-full text-left p-4 border-b border-zinc-800 last:border-0 flex justify-between items-center group transition-colors ${index === 0 ? 'bg-[#0055FF]/10' : 'hover:bg-zinc-800'}`}
-                    >
-                      <div>
-                        <p className="font-bold text-white">{product.name}</p>
-                        <p className="text-xs text-zinc-400 font-mono">{product.sku}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-[#0055FF]">{formatBRL(product.average_cost * 1.5)}</p>
-                      </div>
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
             
             {errorMsg && (
               <div className="absolute top-full left-0 mt-2 flex items-center gap-2 text-rose-500 text-sm font-bold animate-pulse bg-rose-500/10 px-3 py-1 rounded-lg">
@@ -423,15 +382,16 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
             </div>
 
             <div className="flex justify-between items-center p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
-              <span className="text-zinc-400 text-sm flex items-center gap-2"><Tag size={14}/> Desconto</span>
+              <span className="text-zinc-400 text-sm flex items-center gap-2"><Tag size={14}/> Desconto (%)</span>
               <div className="flex items-center gap-2">
-                <span className="text-zinc-500 text-xs">R$</span>
                 <input 
                   type="number" 
-                  value={discount} 
-                  onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
+                  value={discountPercentage} 
+                  onChange={e => setDiscountPercentage(e.target.value)}
+                  placeholder="0"
                   className="w-20 bg-transparent text-right font-bold text-white outline-none border-b border-zinc-700 focus:border-[#0055FF]"
                 />
+                <span className="text-zinc-500 text-lg">%</span>
               </div>
             </div>
           </div>
