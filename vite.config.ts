@@ -22,7 +22,8 @@ export default defineConfig(({mode}) => {
       port: 3000,
       allowedHosts: [
         'itrust.tec.br',
-        'www.itrust.tec.br'
+        'www.itrust.tec.br',
+        'itracky.itrust.tec.br'
       ]
     },
   };
