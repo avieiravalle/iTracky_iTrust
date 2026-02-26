@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Users, 
   ShieldCheck, 
@@ -14,16 +14,19 @@ import {
   Clock,
   Eye,
   EyeOff,
-  FileText,
+  FileText, 
+  Image,
   Store
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { 
-  PieChart, 
-  Pie, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Cell, 
   Tooltip, 
-  Legend, 
   ResponsiveContainer 
 } from 'recharts';
 import { Client, AppSale } from '../types';
@@ -31,6 +34,7 @@ import { formatBRL } from '../utils/format';
 
 interface AuditLog {
   id: number;
+  user_id: number | null;
   user_name: string;
   action: string;
   details: string;
@@ -45,6 +49,8 @@ export const AdminDashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending'>('all');
   const [logSearchTerm, setLogSearchTerm] = useState('');
   
+  const [selectedClientIdForLogo, setSelectedClientIdForLogo] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<AppSale[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -139,6 +145,44 @@ export const AdminDashboard: React.FC = () => {
       }
     } catch (error) {
       alert("Erro ao registrar pagamento");
+    }
+  };
+
+  const changeLogo = (clientId: number) => {
+    setSelectedClientIdForLogo(clientId);
+    fileInputRef.current?.click();
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0 || !selectedClientIdForLogo) {
+      return;
+    }
+    const file = event.target.files[0];
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedClientIdForLogo}/logo`, {
+        method: 'POST',
+        body: formData,
+        // O browser define o 'Content-Type' como 'multipart/form-data' automaticamente
+      });
+
+      if (res.ok) {
+        alert('Logo atualizado com sucesso!');
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(`Erro: ${data.error || 'Não foi possível fazer o upload do logo.'}`);
+      }
+    } catch (error) {
+      alert("Erro de conexão ao fazer upload do logo.");
+    } finally {
+      // Limpa o estado e o valor do input de arquivo
+      setSelectedClientIdForLogo(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -243,8 +287,11 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
+  const adminUser = clients.find(c => c.role === 'admin');
+  const regularClients = clients.filter(c => c.role !== 'admin');
+
   // Filtered data based on search
-  const filteredClients = clients.filter(c => 
+  const filteredClients = regularClients.filter(c => 
     (c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     c.establishment_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -252,13 +299,13 @@ export const AdminDashboard: React.FC = () => {
     (filterStatus === 'all' || (filterStatus === 'pending' && c.status === 'pending'))
   );
 
-  const storeCount = filteredClients.filter(c => c.role === 'gestor').length;
+  const storeCount = regularClients.filter(c => c.role === 'gestor').length;
 
   const filteredSales = sales.filter(s => 
     s.client_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalRevenue = filteredSales.reduce((acc, s) => acc + s.amount, 0);
+  const totalRevenue = sales.reduce((acc, s) => acc + s.amount, 0);
 
   const filteredLogs = logs.filter(log => 
     (log.user_name?.toLowerCase() || '').includes(logSearchTerm.toLowerCase()) ||
@@ -283,7 +330,7 @@ export const AdminDashboard: React.FC = () => {
   });
 
   // Data for Plan Distribution Chart
-  const planDistribution = clients
+  const planDistribution = regularClients
     .filter(c => c.role === 'gestor')
     .reduce((acc, client) => {
       let planName = client.plan || 'Básico';
@@ -301,6 +348,14 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-12">
+      {/* Input de arquivo oculto para o upload do logo */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleLogoUpload}
+        accept="image/png, image/jpeg, image/webp, image/svg+xml"
+        style={{ display: 'none' }}
+      />
       {/* Resumo Admin */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
@@ -309,9 +364,7 @@ export const AdminDashboard: React.FC = () => {
             <h3 className="font-bold text-lg dark:text-white">Total de Lojas</h3>
           </div>
           <p className="text-3xl font-bold dark:text-white">{storeCount}</p>
-          <p className="text-xs text-gray-400 mt-2 uppercase tracking-wider">
-            {searchTerm ? 'Lojas na busca' : 'Lojas ativas no sistema'}
-          </p>
+          <p className="text-xs text-gray-400 mt-2 uppercase tracking-wider">Lojas ativas no sistema</p>
         </div>
 
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
@@ -320,9 +373,7 @@ export const AdminDashboard: React.FC = () => {
             <h3 className="font-bold text-lg dark:text-white">Faturamento</h3>
           </div>
           <p className="text-3xl font-bold text-emerald-600">{formatBRL(totalRevenue)}</p>
-          <p className="text-xs text-gray-400 mt-2 uppercase tracking-wider">
-            {searchTerm ? 'Soma da pesquisa' : 'Vendas de assinaturas'}
-          </p>
+          <p className="text-xs text-gray-400 mt-2 uppercase tracking-wider">Vendas de assinaturas</p>
         </div>
 
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
@@ -330,45 +381,68 @@ export const AdminDashboard: React.FC = () => {
             <AlertCircle size={24} />
             <h3 className="font-bold text-lg dark:text-white">Pendentes</h3>
           </div>
-          <p className="text-3xl font-bold text-amber-500">{filteredClients.filter(c => c.status === 'pending').length}</p>
+          <p className="text-3xl font-bold text-amber-500">{regularClients.filter(c => c.status === 'pending').length}</p>
           <p className="text-xs text-gray-400 mt-2 uppercase tracking-wider">Aguardando confirmação</p>
         </div>
       </div>
+
+      {/* Configurações do Admin */}
+      {adminUser && (
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm">
+            <h3 className="font-bold text-lg dark:text-white mb-4 flex items-center gap-2">
+                <ShieldCheck size={20} className="text-blue-500" />
+                Configurações do Sistema
+            </h3>
+            <div className="flex items-center gap-6">
+                <div className="relative group shrink-0">
+                    <img 
+                        src={(adminUser as any).logo_url || `https://ui-avatars.com/api/?name=A&background=1A3A5F&color=fff&size=128&rounded=true`} 
+                        alt="Logo do Admin" 
+                        className="w-24 h-24 rounded-2xl object-cover bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700"
+                    />
+                    <button 
+                        onClick={() => changeLogo(adminUser.id)}
+                        className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl cursor-pointer"
+                        title="Alterar Logo"
+                    >
+                        <Image size={28} />
+                    </button>
+                </div>
+                <div>
+                    <p className="font-bold text-base dark:text-white">Logo da Tela de Login</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Este é o logo principal do sistema, exibido na tela de login para todos os usuários antes de se identificarem.
+                    </p>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* Gráfico de Distribuição de Planos */}
       <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
         <h3 className="font-bold text-lg dark:text-white mb-4">Distribuição por Plano</h3>
         <div className="h-72 w-full">
           <ResponsiveContainer>
-            <PieChart>
-              <Pie
-                data={planChartData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                labelLine={false}
-                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                  const RADIAN = Math.PI / 180;
-                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                  if (percent < 0.05) return null;
-                  return (
-                    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize="12px" fontWeight="bold">
-                      {`${(percent * 100).toFixed(0)}%`}
-                    </text>
-                  );
+            <BarChart data={planChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.05)" />
+              <XAxis dataKey="name" tick={{ fill: '#a1a1aa', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fill: '#a1a1aa', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip 
+                formatter={(value) => [`${value} lojas`, 'Lojas']} 
+                cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                contentStyle={{
+                  backgroundColor: '#18181b',
+                  borderColor: '#27272a',
+                  borderRadius: '12px',
                 }}
-              >
+                labelStyle={{ fontWeight: 'bold' }}
+              />
+              <Bar dataKey="value" name="Lojas" radius={[4, 4, 0, 0]}>
                 {planChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={PLAN_COLORS[entry.name] || '#8884d8'} />
                 ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`${value} lojas`, 'Lojas']} />
-              <Legend />
-            </PieChart>
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -470,7 +544,7 @@ export const AdminDashboard: React.FC = () => {
                             <span className="text-[10px] text-gray-400 font-medium">
                               ({group.length} usuários)
                             </span>
-                          </div>
+                          </div>  
                         </td>
                       </tr>
                     )}
@@ -492,7 +566,7 @@ export const AdminDashboard: React.FC = () => {
                               <div className="flex items-center gap-1.5 mt-1.5">
                                 <Key size={12} className="text-gray-400" />
                                 <code className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 px-2 py-0.5 rounded select-all cursor-text" title="Código da Loja">
-                                  {(client as any).store_code}
+                                  {(client as any).store_code}  
                                 </code>
                               </div>
                             )}
@@ -529,33 +603,37 @@ export const AdminDashboard: React.FC = () => {
                             {new Date(client.last_payment).toLocaleDateString('pt-BR')}
                           </td>
                           <td className="px-6 py-4 text-right space-x-1">
-                            <button 
-                              type="button"
-                              onClick={() => registerPayment(client.id)}
-                              className={`p-2 rounded-lg transition-colors ${client.status === 'pending' ? 'text-emerald-600 bg-emerald-100 hover:bg-emerald-200 animate-pulse' : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'}`}
-                              title={client.status === 'pending' ? "Confirmar Pagamento e Aprovar" : "Registrar Pagamento"}
-                            >
-                              <CreditCard size={18} />
-                            </button>
-                            <button type="button" className="p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Resetar Senha">
-                              <Key size={18} />
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => toggleStatus(client.id)}
-                              className={`p-2 transition-colors ${client.status === 'active' ? 'text-amber-400 hover:text-amber-600' : 'text-emerald-400 hover:text-emerald-600'}`}
-                              title={client.status === 'active' ? 'BLOQUEAR ACESSO (Desconecta Imediatamente)' : 'Liberar Acesso'}
-                            >
-                              {client.status === 'active' ? <Ban size={18} /> : <CheckCircle2 size={18} />}
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => deleteClient(client.id)}
-                              className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
-                              title="Deletar Cliente"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            {client.role !== 'admin' && (
+                              <>
+                                <button 
+                                  type="button"
+                                  onClick={() => registerPayment(client.id)}
+                                  className={`p-2 rounded-lg transition-colors ${client.status === 'pending' ? 'text-emerald-600 bg-emerald-100 hover:bg-emerald-200 animate-pulse' : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'}`}
+                                  title={client.status === 'pending' ? "Confirmar Pagamento e Aprovar" : "Registrar Pagamento"}
+                                >
+                                  <CreditCard size={18} />
+                                </button>
+                                <button type="button" className="p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Resetar Senha">
+                                  <Key size={18} />
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => toggleStatus(client.id)}
+                                  className={`p-2 transition-colors ${client.status === 'active' ? 'text-amber-400 hover:text-amber-600' : 'text-emerald-400 hover:text-emerald-600'}`}
+                                  title={client.status === 'active' ? 'BLOQUEAR ACESSO (Desconecta Imediatamente)' : 'Liberar Acesso'}
+                                >
+                                  {client.status === 'active' ? <Ban size={18} /> : <CheckCircle2 size={18} />}
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => deleteClient(client.id)}
+                                  className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                                  title="Deletar Cliente"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Package, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, UserPlus, Users, ArrowLeft, KeyRound } from 'lucide-react';
 import { motion } from 'motion/react';
+import { usePalette } from 'color-thief-react';
 import { PlanSelection, Plan } from './PlanSelection';
 import { PixPaymentModal } from './PixPaymentModal';
 
@@ -36,6 +37,8 @@ export const Auth: React.FC<AuthProps> = ({
   const [validatingStore, setValidatingStore] = useState(false);
   const [storeName, setStoreName] = useState('');
   const [storeError, setStoreError] = useState('');
+  const [loginLogo, setLoginLogo] = useState<string | null>(null);
+  const [storeLogo, setStoreLogo] = useState<string | null>(null);
   
   // Password Recovery State
   const [authMode, setAuthMode] = useState<'default' | 'forgot' | 'reset'>('default');
@@ -54,15 +57,51 @@ export const Auth: React.FC<AuthProps> = ({
     }
   }, [role, storeCode]);
 
+  // Fetch admin logo for login screen
+  React.useEffect(() => {
+    const fetchAdminLogo = async () => {
+      try {
+        const res = await fetch('/api/branding/admin');
+        if (res.ok) {
+          const data = await res.json();
+          setLoginLogo(data.logo_url || null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin logo:", error);
+        setLoginLogo(null); // Fallback to default
+      }
+    };
+
+    if (screen === 'login' && authMode === 'default') {
+      fetchAdminLogo();
+    }
+  }, [screen, authMode]);
+
+  // Extrai a paleta de cores do logo do admin
+  const { data: palette } = usePalette(loginLogo, 2, 'hex', { crossOrigin: 'anonymous' });
+
+  // Efeito para aplicar as cores do logo dinamicamente
+  React.useEffect(() => {
+    if (palette) {
+      document.documentElement.style.setProperty('--login-theme-color', palette[0]);
+    }
+    // Cleanup: remove a variável ao sair da tela de login
+    return () => {
+      document.documentElement.style.removeProperty('--login-theme-color');
+    };
+  }, [palette]);
+
   const validateStoreCode = async (code: string) => {
     if (code.length < 6) return;
     setValidatingStore(true);
     setStoreError('');
+    setStoreLogo(null);
     try {
       const res = await fetch(`/api/validate-store/${code.toUpperCase()}`);
       const data = await res.json();
       if (res.ok) {
         setStoreName(data.establishment_name);
+        setStoreLogo(data.logo_url || null);
         if (role === 'colaborador') {
           setEstablishmentName(data.establishment_name);
         }
@@ -283,13 +322,17 @@ export const Auth: React.FC<AuthProps> = ({
           animate={{ opacity: 1, y: 0 }}
           className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100"
         >
-          <div className="flex items-center gap-2 mb-8 justify-center">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Package className="text-white w-6 h-6" />
-            </div>
-            <h1 className="font-bold text-2xl tracking-tight">Controle de Estoque</h1>
+          <div className="flex items-center gap-3 mb-8 justify-center">
+            {loginLogo ? (
+              <img src={loginLogo} alt="Logo iTracky" className="h-10 object-contain" />
+            ) : (
+              <div className="w-10 h-10 bg-[var(--login-theme-color,theme(colors.blue.600))] rounded-xl flex items-center justify-center">
+                <Package className="text-white w-6 h-6" />
+              </div>
+            )}
+            <h1 className="font-bold text-2xl tracking-tight">iTracky</h1>
           </div>
-          <h2 className="text-xl font-bold mb-6 text-center">Entrar na sua conta</h2>
+          <h2 className="text-xl font-bold mb-6 text-center dark:text-white">Entrar na sua conta</h2>
           <form onSubmit={onLogin} className="space-y-4">
             {loginError && (
               <motion.div 
@@ -313,7 +356,7 @@ export const Auth: React.FC<AuthProps> = ({
                   onClearError?.();
                 }}
                 required 
-                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" 
                 placeholder="seu@email.com" 
               />
             </div>
@@ -330,7 +373,7 @@ export const Auth: React.FC<AuthProps> = ({
                     onClearError?.();
                   }}
                   required 
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none pr-12" 
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none pr-12 dark:text-white" 
                   placeholder="••••••••" 
                 />
                 <button 
@@ -345,22 +388,22 @@ export const Auth: React.FC<AuthProps> = ({
             <div className="flex justify-end">
               <button 
                 type="button" 
-                onClick={() => setAuthMode('forgot')}
-                className="text-xs font-bold text-gray-400 hover:text-blue-600 transition-colors"
+                onClick={() => { setAuthMode('forgot'); onClearError?.(); }}
+                className="text-xs font-bold text-gray-400 hover:text-[var(--login-theme-color,theme(colors.blue.600))] transition-colors"
               >
                 Esqueci minha senha
               </button>
             </div>
-            <button type="submit" data-testid="btn-login-submit" className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">Entrar</button>
+            <button type="submit" data-testid="btn-login-submit" className="w-full px-4 py-3 bg-[var(--login-theme-color,theme(colors.blue.600))] text-white rounded-xl font-bold hover:brightness-90 transition-all shadow-lg shadow-blue-600/20">Entrar</button>
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
-            Não tem uma conta? <button type="button" onClick={() => { setScreen('register'); onClearError?.(); }} className="text-blue-600 font-bold hover:underline">Cadastre-se</button>
+            Não tem uma conta? <button type="button" onClick={() => { setScreen('register'); onClearError?.(); }} className="text-[var(--login-theme-color,theme(colors.blue.600))] font-bold hover:underline">Cadastre-se</button>
           </p>
           <div className="mt-4 pt-4 border-t border-gray-100 text-center">
             <button 
               type="button"
               onClick={onAdminClick}
-              className="text-xs font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-2 justify-center mx-auto mb-4"
+              className="text-xs font-bold text-[var(--login-theme-color,theme(colors.blue.600))] hover:brightness-90 uppercase tracking-wider flex items-center gap-2 justify-center mx-auto mb-4"
             >
               <ShieldCheck size={14} />
               Entrar como Adm
@@ -409,11 +452,15 @@ export const Auth: React.FC<AuthProps> = ({
         animate={{ opacity: 1, y: 0 }}
         className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100"
       >
-        <div className="flex items-center gap-2 mb-8 justify-center">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-            <Package className="text-white w-6 h-6" />
-          </div>
-          <h1 className="font-bold text-2xl tracking-tight">Controle de Estoque</h1>
+        <div className="flex items-center gap-3 mb-8 justify-center">
+          {(role === 'colaborador' && storeLogo) ? (
+            <img src={storeLogo} alt="Logo da Loja" className="h-10 object-contain" />
+          ) : (
+            <div className="w-10 h-10 bg-[var(--login-theme-color,theme(colors.blue.600))] rounded-xl flex items-center justify-center">
+              <Package className="text-white w-6 h-6" />
+            </div>
+          )}
+          <h1 className="font-bold text-2xl tracking-tight">iTracky</h1>
         </div>
         <h2 className="text-xl font-bold mb-6 text-center">Criar nova conta</h2>
         

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Upload, RefreshCw, Palette, Trash2, Check, Sun, Moon, Monitor } from 'lucide-react';
+import { Save, Upload, RefreshCw, Palette, Trash2, Sun, Moon, Monitor, Loader2 } from 'lucide-react';
 import { User } from '../types';
 
 interface StoreSettingsProps {
@@ -25,11 +25,17 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>((user as any)?.theme_preference || 'system');
   const [logoUrl, setLogoUrl] = useState((user as any)?.logo_url || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Referência para manter o usuário atualizado sem disparar re-renders do efeito de cor
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
+    // Atualiza o logo se o usuário for atualizado externamente
+    if ((user as any)?.logo_url !== logoUrl) {
+      setLogoUrl((user as any)?.logo_url || '');
+    }
   }, [user]);
 
   // Efeito de Preview em Tempo Real
@@ -70,20 +76,62 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
     });
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/store-settings/logo', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLogoUrl(data.logo_url);
+        onUpdateUser(); // Refresh user data in App.tsx
+        alert('Logo atualizado com sucesso!');
+      } else {
+        throw new Error(data.error || 'Falha no upload');
+      }
+    } catch (error: any) {
+      alert(`Erro ao enviar logo: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
     }
   };
 
-  const handleRemoveLogo = () => {
+  const handleRemoveLogo = async () => {
     if (window.confirm('Tem certeza que deseja remover o logo da empresa?')) {
-      setLogoUrl('');
+      setIsSaving(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/store-settings/logo', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.ok) {
+          setLogoUrl('');
+          onUpdateUser();
+          alert('Logo removido com sucesso.');
+        } else {
+          const data = await res.json();
+          throw new Error(data.error || 'Falha ao remover logo.');
+        }
+      } catch (error: any) {
+        alert(`Erro: ${error.message}`);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -99,7 +147,6 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
         },
         body: JSON.stringify({
           custom_colors: colors,
-          logo_url: logoUrl,
           theme_preference: themeMode
         })
       });
@@ -131,7 +178,7 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Seção de Cores */}
+        {/* Seção de Cores e Tema */}
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm">
           <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Paleta de Cores</h3>
           
@@ -221,8 +268,17 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
         {/* Seção de Logo */}
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm">
           <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Logo da Empresa</h3>
+          <input 
+            type="file" 
+            ref={logoInputRef} 
+            onChange={handleLogoUpload} 
+            accept="image/png, image/jpeg, image/webp, image/svg+xml"
+            className="hidden" 
+          />
           <div className="flex flex-col items-center justify-center gap-4 border-2 border-dashed border-gray-200 dark:border-zinc-700 rounded-xl p-8 relative">
-            {logoUrl ? (
+            {isUploading ? (
+              <div className="h-24 w-24 flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
+            ) : logoUrl ? (
               <div className="relative group">
                 <img src={logoUrl} alt="Logo Preview" className="h-24 object-contain" />
                 <button 
@@ -236,11 +292,10 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
             ) : (
               <div className="h-24 w-24 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-400">Sem Logo</div>
             )}
-            <label className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+            <button onClick={() => logoInputRef.current?.click()} disabled={isUploading} className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
               <Upload size={18} />
-              <span>Carregar Imagem</span>
-              <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-            </label>
+              <span>{logoUrl ? 'Alterar Imagem' : 'Carregar Imagem'}</span>
+            </button>
           </div>
         </div>
       </div>

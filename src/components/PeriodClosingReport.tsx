@@ -121,22 +121,22 @@ export function PeriodClosingReport() {
 
             <section>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800 dark:text-gray-200"><Wallet size={20} /> Visão Financeira</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-3 sm:p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg text-center">
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Faturamento Bruto</p>
-                  <p className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 break-words">{formatCurrency(reportData.financial.totalRevenue)}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-2 sm:p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg flex flex-col justify-center text-center min-h-[90px]">
+                  <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Faturamento Bruto</p>
+                  <p className="text-sm sm:text-base md:text-lg font-bold text-gray-800 dark:text-gray-200 break-words">{formatCurrency(reportData.financial.totalRevenue)}</p>
                 </div>
-                <div className="p-3 sm:p-4 bg-green-50 dark:bg-green-500/10 rounded-lg text-center">
-                  <p className="text-xs sm:text-sm text-green-800 dark:text-green-300">Recebimentos (Caixa)</p>
-                  <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400 break-words">{formatCurrency(reportData.financial.totalReceived)}</p>
+                <div className="p-2 sm:p-3 bg-green-50 dark:bg-green-500/10 rounded-lg flex flex-col justify-center text-center min-h-[90px]">
+                  <p className="text-[10px] sm:text-xs text-green-800 dark:text-green-300 whitespace-nowrap">Recebimentos (Caixa)</p>
+                  <p className="text-sm sm:text-base md:text-lg font-bold text-green-600 dark:text-green-400 break-words">{formatCurrency(reportData.financial.totalReceived)}</p>
                 </div>
-                <div className="p-3 sm:p-4 bg-red-50 dark:bg-red-500/10 rounded-lg text-center">
-                  <p className="text-xs sm:text-sm text-red-800 dark:text-red-300">Contas a Pagar (Entradas)</p>
-                  <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400 break-words">{formatCurrency(reportData.financial.accountsPayable)}</p>
+                <div className="p-2 sm:p-3 bg-red-50 dark:bg-red-500/10 rounded-lg flex flex-col justify-center text-center min-h-[90px]">
+                  <p className="text-[10px] sm:text-xs text-red-800 dark:text-red-300 whitespace-nowrap">Contas a Pagar</p>
+                  <p className="text-sm sm:text-base md:text-lg font-bold text-red-600 dark:text-red-400 break-words">{formatCurrency(reportData.financial.accountsPayable)}</p>
                 </div>
-                <div className={`p-3 sm:p-4 rounded-lg text-center ${reportData.financial.netBalance >= 0 ? 'bg-blue-50 dark:bg-blue-500/10' : 'bg-rose-50 dark:bg-rose-500/10'}`}>
-                  <p className={`text-xs sm:text-sm ${reportData.financial.netBalance >= 0 ? 'text-blue-800 dark:text-blue-300' : 'text-rose-800 dark:text-rose-300'}`}>Saldo Líquido</p>
-                  <p className={`text-lg sm:text-xl font-bold ${reportData.financial.netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'} break-words`}>{formatCurrency(reportData.financial.netBalance)}</p>
+                <div className={`p-2 sm:p-3 rounded-lg flex flex-col justify-center text-center min-h-[90px] ${reportData.financial.netBalance >= 0 ? 'bg-blue-50 dark:bg-blue-500/10' : 'bg-rose-50 dark:bg-rose-500/10'}`}>
+                  <p className={`text-[10px] sm:text-xs ${reportData.financial.netBalance >= 0 ? 'text-blue-800 dark:text-blue-300' : 'text-rose-800 dark:text-rose-300'} whitespace-nowrap`}>Saldo Líquido</p>
+                  <p className={`text-sm sm:text-base md:text-lg font-bold ${reportData.financial.netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'} break-words`}>{formatCurrency(reportData.financial.netBalance)}</p>
                 </div>
               </div>
             </section>
@@ -174,21 +174,21 @@ export function PeriodClosingReport() {
 
             <section>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800 dark:text-gray-200"><BarChart size={20} /> KPIs de Performance</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-3 sm:p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg text-center">
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Ticket Médio</p>
-                  <p className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 break-words">{formatCurrency(reportData.performance.averageTicket)}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-2 sm:p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg flex flex-col justify-center text-center min-h-[90px]">
+                  <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Ticket Médio</p>
+                  <p className="text-sm sm:text-base md:text-lg font-bold text-gray-800 dark:text-gray-200 break-words">{formatCurrency(reportData.performance.averageTicket)}</p>
                 </div>
-                <div className="p-3 sm:p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg text-center">
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Margem de Contribuição</p>
+                <div className="p-2 sm:p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg flex flex-col justify-center text-center min-h-[90px]">
+                  <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Margem de Contribuição</p>
                   <div className="flex flex-col items-center">
-                    <p className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 break-words">{reportData.performance.contributionMargin.toFixed(2)}%</p>
+                    <p className="text-sm sm:text-base md:text-lg font-bold text-gray-800 dark:text-gray-200">{reportData.performance.contributionMargin.toFixed(2)}%</p>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">({formatCurrency(reportData.performance.grossProfit)})</p>
                   </div>
                 </div>
-                <div className="p-3 sm:p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg text-center col-span-2">
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 flex items-center justify-center gap-1"><Star size={14} className="text-yellow-500"/> Produto Carro-Chefe</p>
-                  <p className="text-base sm:text-lg font-bold truncate text-gray-800 dark:text-gray-200" title={reportData.performance.leadProduct.name}>{reportData.performance.leadProduct.name}</p>
+                <div className="p-2 sm:p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg text-center col-span-2 flex flex-col justify-center min-h-[90px]">
+                  <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 flex items-center justify-center gap-1"><Star size={14} className="text-yellow-500"/> Produto Carro-Chefe</p>
+                  <p className="text-xs sm:text-sm font-bold truncate text-gray-800 dark:text-gray-200" title={reportData.performance.leadProduct.name}>{reportData.performance.leadProduct.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{reportData.performance.leadProduct.quantitySold} unidades vendidas</p>
                 </div>
               </div>

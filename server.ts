@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
+import multer from "multer";
 import jwt from "jsonwebtoken";
 
 let db: Database.Database | null = null;
@@ -240,13 +241,30 @@ export async function createApp() {
   initDb();
   const db = getDb();
   const app = express();
-  app.use(express.json());
 
+  // Middlewares
+  app.use(express.json());
+  app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+  // Configuração do Multer para Upload de Arquivos
+  const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      const uploadPath = path.join(__dirname, 'public/uploads');
+      // Garante que o diretório de uploads exista
+      fs.mkdirSync(uploadPath, { recursive: true });
+      cb(null, uploadPath);
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+  });
+  const upload = multer({ storage: storage });
   // Auth Routes
   app.get("/api/validate-store/:code", (req, res) => {
     try {
       const { code } = req.params;
-      const store = db.prepare("SELECT establishment_name, id FROM users WHERE store_code = ? AND role = 'gestor'").get(code) as any;
+      const store = db.prepare("SELECT establishment_name, id, logo_url FROM users WHERE store_code = ? AND role = 'gestor'").get(code) as any;
       
       if (store) {
         // Count collaborators
@@ -254,12 +272,47 @@ export async function createApp() {
         if (count.count >= 4) {
           return res.status(400).json({ error: "Limite de colaboradores atingido para esta loja (máx 4)" });
         }
-        res.json({ establishment_name: store.establishment_name });
+        res.json({ establishment_name: store.establishment_name, logo_url: store.logo_url });
       } else {
         res.status(404).json({ error: "Código de loja não encontrado" });
       }
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota pública para buscar o branding do admin
+  app.get("/api/branding/admin", (req, res) => {
+    try {
+      const admin = db.prepare("SELECT logo_url FROM users WHERE role = 'admin'").get() as any;
+      res.json({ logo_url: admin?.logo_url || null });
+    } catch (error: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Rota pública para buscar branding da loja pelo e-mail
+  app.get("/api/branding/:email", (req, res) => {
+    try {
+      const { email } = req.params;
+      if (!email) return res.json({ logo_url: null });
+
+      const user = db.prepare("SELECT id, role, parent_id, logo_url FROM users WHERE email = ?").get(email) as any;
+
+      if (!user) {
+        return res.json({ logo_url: null });
+      }
+
+      let logo_url = null;
+      if (user.role === 'gestor') {
+        logo_url = user.logo_url;
+      } else if (user.role === 'colaborador' && user.parent_id) {
+        const gestor = db.prepare("SELECT logo_url FROM users WHERE id = ?").get(user.parent_id) as any;
+        if (gestor) logo_url = gestor.logo_url;
+      }
+      res.json({ logo_url });
+    } catch (error: any) {
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
@@ -723,7 +776,7 @@ export async function createApp() {
   app.patch("/api/store-settings", authenticateToken, (req: AuthRequest, res) => {
     try {
       const user = req.user;
-      const { custom_colors, logo_url, theme_preference } = req.body;
+      const { custom_colors, theme_preference } = req.body;
 
       if (user.role !== 'gestor') {
         return res.status(403).json({ error: "Apenas gestores podem alterar configurações da loja." });
@@ -733,10 +786,56 @@ export async function createApp() {
       const validThemes = ['light', 'dark', 'system'];
       const finalTheme = theme_preference && validThemes.includes(theme_preference) ? theme_preference : 'system';
 
-      db.prepare("UPDATE users SET custom_colors = ?, logo_url = ?, theme_preference = ? WHERE id = ?").run(colorsString, logo_url, finalTheme, user.id);
+      db.prepare("UPDATE users SET custom_colors = ?, theme_preference = ? WHERE id = ?").run(colorsString, finalTheme, user.id);
       
       logAudit(user.id, user.name, 'UPDATE_SETTINGS', `Configurações da loja atualizadas.`);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para upload de logo pelo GESTOR
+  app.post("/api/store-settings/logo", authenticateToken, upload.single('logo'), (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== 'gestor') {
+        // Se o arquivo foi salvo pelo multer, mas o usuário não tem permissão, removemos o arquivo.
+        if (req.file) fs.unlinkSync(req.file.path);
+        return res.status(403).json({ error: "Apenas gestores podem alterar o logo." });
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+      }
+      
+      const logo_url = `/uploads/${req.file.filename}`;
+      db.prepare("UPDATE users SET logo_url = ? WHERE id = ?").run(logo_url, user.id);
+      
+      logAudit(user.id, user.name, 'UPDATE_LOGO', `Logo da loja atualizado.`);
+      res.json({ success: true, logo_url });
+
+    } catch (error: any) {
+      // If something fails, try to remove the uploaded file
+      if (req.file) fs.unlinkSync(req.file.path);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para remover o logo pelo GESTOR
+  app.delete("/api/store-settings/logo", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== 'gestor') {
+        return res.status(403).json({ error: "Apenas gestores podem remover o logo." });
+      }
+
+      // Opcional: deletar o arquivo físico do servidor. Requer buscar o `logo_url` atual no DB.
+
+      db.prepare("UPDATE users SET logo_url = NULL WHERE id = ?").run(user.id);
+      
+      logAudit(user.id, user.name, 'REMOVE_LOGO', `Logo da loja removido.`);
+      res.json({ success: true });
+
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -800,29 +899,6 @@ export async function createApp() {
       logAudit(user.id, user.name, 'ALTERACAO_STATUS_COLABORADOR', `Status do colaborador ID ${id} alterado para ${status}`);
       
       res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/collaborators/:id/logs", authenticateToken, (req: AuthRequest, res) => {
-    try {
-      const user = req.user; // This is the gestor
-      const { id: collaboratorId } = req.params;
-
-      if (user.role !== 'gestor') {
-        return res.status(403).json({ error: "Acesso negado." });
-      }
-
-      // Security check: ensure the requested collaborator belongs to the gestor.
-      const collaborator = db.prepare("SELECT id FROM users WHERE id = ? AND parent_id = ?").get(collaboratorId, user.id);
-      if (!collaborator) {
-        return res.status(404).json({ error: "Colaborador não encontrado na sua equipe." });
-      }
-
-      const logs = db.prepare("SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50").all(collaboratorId);
-      res.json(logs);
-
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -923,8 +999,34 @@ export async function createApp() {
 
   app.get("/api/admin/users", (req, res) => {
     try {
-      const users = db.prepare("SELECT id, name, email, establishment_name, role, status, last_payment, plan, store_code FROM users WHERE role != 'admin' ORDER BY name ASC").all();
+      const users = db.prepare("SELECT id, name, email, establishment_name, role, status, last_payment, plan, store_code, logo_url FROM users ORDER BY role ASC, name ASC").all();
       res.json(users);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para upload de logo pelo admin
+  app.post("/api/admin/users/:id/logo", upload.single('logo'), (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+      }
+      
+      // Constrói a URL pública do arquivo salvo
+      const logo_url = `/uploads/${req.file.filename}`;
+  
+      const info = db.prepare("UPDATE users SET logo_url = ? WHERE id = ?").run(logo_url, id);
+      
+      if (info.changes > 0) {
+        logAudit(null, 'Admin', 'UPDATE_LOGO', `Logo do usuário ID ${id} atualizado pelo administrador.`);
+        res.json({ success: true, logo_url });
+      } else {
+        // Se o usuário não foi encontrado, remove o arquivo que foi feito upload
+        fs.unlinkSync(req.file.path);
+        res.status(404).json({ error: "Usuário não encontrado ou nenhuma alteração foi feita." });
+      }
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
