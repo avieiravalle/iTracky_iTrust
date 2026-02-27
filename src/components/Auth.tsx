@@ -283,21 +283,21 @@ export const Auth: React.FC<AuthProps> = ({
           {authMode === 'forgot' ? (
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">E-mail Cadastrado</label>
-                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none" placeholder="seu@email.com" />
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">E-mail Cadastrado</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none" placeholder="seu@email.com" />
               </div>
               <button type="submit" className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">Enviar Código</button>
             </form>
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Código de 6 Dígitos</label>
-                <input type="text" required value={resetToken} onChange={e => setResetToken(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none text-center tracking-widest font-bold text-lg" placeholder="000000" maxLength={6} />
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Código de 6 Dígitos</label>
+                <input type="text" required value={resetToken} onChange={e => setResetToken(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none text-center tracking-widest font-bold text-lg" placeholder="000000" maxLength={6} />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nova Senha</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Nova Senha</label>
                 <div className="relative">
-                  <input type={showPassword ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none pr-12" placeholder="Nova senha" />
+                  <input type={showPassword ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none pr-12" placeholder="Nova senha" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
@@ -357,7 +357,7 @@ export const Auth: React.FC<AuthProps> = ({
               </motion.div>
             )}
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">E-mail</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">E-mail</label>
               <input 
                 name="email" 
                 type="email" 
@@ -368,12 +368,12 @@ export const Auth: React.FC<AuthProps> = ({
                   onClearError?.();
                 }}
                 required 
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" 
                 placeholder="seu@email.com" 
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Senha</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Senha</label>
               <div className="relative">
                 <input 
                   name="password" 
@@ -385,7 +385,7 @@ export const Auth: React.FC<AuthProps> = ({
                     onClearError?.();
                   }}
                   required 
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none pr-12 dark:text-white" 
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none pr-12 text-gray-900 dark:text-white" 
                   placeholder="••••••••" 
                 />
                 <button 
@@ -502,7 +502,7 @@ export const Auth: React.FC<AuthProps> = ({
           
           {role === 'colaborador' && (
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-400 uppercase">Código da Loja</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Código da Loja</label>
               <div className="relative">
                 <input 
                   name="store_code" 
@@ -513,7 +513,7 @@ export const Auth: React.FC<AuthProps> = ({
                     setStoreCode(val);
                     if (val.length === 6) validateStoreCode(val);
                   }}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" 
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" 
                   placeholder="ABC123" 
                 />
                 {validatingStore && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />}
@@ -539,18 +539,18 @@ export const Auth: React.FC<AuthProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-4 space-y-4 lg:space-y-0">
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome</label>
-              <input name="name" required value={name} data-testid="input-name" onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="Seu nome" />
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Nome</label>
+              <input name="name" required value={name} data-testid="input-name" onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="Seu nome" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">E-mail</label>
-              <input name="email" type="email" required value={email} data-testid="input-email" onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="seu@email.com" />
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">E-mail</label>
+              <input name="email" type="email" required value={email} data-testid="input-email" onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="seu@email.com" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Senha</label>
+            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Senha</label>
             <div className="relative">
-              <input name="password" type={showPassword ? "text" : "password"} value={password || ''} data-testid="input-password" onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none pr-12" placeholder="••••••••" />
+              <input name="password" type={showPassword ? "text" : "password"} value={password || ''} data-testid="input-password" onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none pr-12" placeholder="••••••••" />
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -562,7 +562,7 @@ export const Auth: React.FC<AuthProps> = ({
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 space-y-4 lg:space-y-0">
             <div className="relative">
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">CEP</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">CEP</label>
               <div className="relative">
                 <input 
                   name="cep" 
@@ -570,7 +570,7 @@ export const Auth: React.FC<AuthProps> = ({
                   data-testid="input-cep"
                   onChange={handleCepChange}
                   required 
-                  className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 outline-none transition-all ${
+                  className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 outline-none transition-all ${
                     cepStatus === 'success' ? 'focus:ring-emerald-500/20 pr-10' : 
                     cepStatus === 'error' ? 'focus:ring-rose-500/20 pr-10' : 'focus:ring-black/5'
                   }`} 
@@ -584,7 +584,7 @@ export const Auth: React.FC<AuthProps> = ({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Estabelecimento</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Estabelecimento</label>
               <input 
                 name="establishment_name" 
                 required={role === 'gestor'} 
@@ -592,7 +592,7 @@ export const Auth: React.FC<AuthProps> = ({
                 value={establishmentName}
                 data-testid="input-establishment"
                 onChange={(e) => setEstablishmentName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none disabled:opacity-50" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none disabled:opacity-50" 
                 placeholder={role === 'colaborador' ? "Aguardando código..." : "Nome da Loja"} 
               />
             </div>

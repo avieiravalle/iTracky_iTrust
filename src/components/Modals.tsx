@@ -398,7 +398,7 @@ export const Modals: React.FC<ModalsProps> = ({
             <h3 className="text-xl font-bold mb-6 dark:text-white">Cadastrar Novo Produto</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">ID / Código</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">ID / Código</label>
                 <div className="relative flex gap-2">
                   <div className="relative flex-1">
                     <input 
@@ -410,7 +410,7 @@ export const Modals: React.FC<ModalsProps> = ({
                       onBlur={handleSkuBlur}
                       onKeyDown={handleSkuKeyDown}
                       autoFocus
-                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none dark:text-white ${skuError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} 
+                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none text-gray-900 dark:text-white ${skuError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} 
                       placeholder="Escaneie ou digite..." 
                     />
                     {lookupLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 w-5 h-5 animate-spin" />}
@@ -431,9 +431,9 @@ export const Modals: React.FC<ModalsProps> = ({
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Nome do Produto</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Nome do Produto</label>
                 <div className="relative">
-                  <input name="name" data-testid="input-product-name" required value={name} onChange={handleNameChange} className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none dark:text-white ${nameError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} placeholder="Ex: Monitor Dell 24" />
+                  <input name="name" data-testid="input-product-name" required value={name} onChange={handleNameChange} className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none text-gray-900 dark:text-white ${nameError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} placeholder="Ex: Monitor Dell 24" />
                   {name && !nameError && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />}
                 </div>
                 {nameError && (
@@ -444,15 +444,15 @@ export const Modals: React.FC<ModalsProps> = ({
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Marca (Opcional)</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Marca (Opcional)</label>
                 <div className="relative">
-                  <input name="brand" value={brand} onChange={e => setBrand(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="Ex: Dell, Samsung..." />
+                  <input name="brand" value={brand} onChange={e => setBrand(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" placeholder="Ex: Dell, Samsung..." />
                   {brand && <Tag className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Estoque Mínimo (Alerta)</label>
-                <input ref={minStockInputRef} name="min_stock" data-testid="input-product-min-stock" type="number" inputMode="numeric" defaultValue={5} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Estoque Mínimo (Alerta)</label>
+                <input ref={minStockInputRef} name="min_stock" data-testid="input-product-min-stock" type="number" inputMode="numeric" defaultValue={5} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" />
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" data-testid="btn-cancel-product" onClick={() => setShowAddProduct(false)} className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
@@ -512,7 +512,7 @@ export const Modals: React.FC<ModalsProps> = ({
                       onChange={handleSkuSearchChange}
                       onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleProductFound(searchSku); } }}
                       placeholder="Clique aqui para usar o leitor USB..." 
-                      className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white"
+                      className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none text-gray-900 dark:text-white"
                     />
                     <button 
                       type="button"
@@ -533,41 +533,41 @@ export const Modals: React.FC<ModalsProps> = ({
                     <span className="text-xs font-bold uppercase">Novo Produto Detectado</span>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ID / Código</label>
+                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase mb-1">ID / Código</label>
                     <input 
                       name="sku" 
                       value={sku} 
                       onChange={e => setSku(e.target.value)} 
-                      className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 focus:ring-2 focus:ring-blue-500 outline-none dark:text-white text-sm font-mono" 
+                      className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm font-mono" 
                       placeholder="Código do produto"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Nome do Produto</label>
+                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase mb-1">Nome do Produto</label>
                     <input 
                       name="name" 
                       value={name} 
                       onChange={e => setName(e.target.value)} 
-                      className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 focus:ring-2 focus:ring-blue-500 outline-none dark:text-white text-sm" 
+                      className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm" 
                       placeholder="Nome do produto"
                       required
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Marca</label>
-                      <input name="brand" value={brand} onChange={e => setBrand(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 outline-none dark:text-white text-sm" placeholder="Marca" />
+                      <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase mb-1">Marca</label>
+                      <input name="brand" value={brand} onChange={e => setBrand(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 outline-none text-gray-900 dark:text-white text-sm" placeholder="Marca" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Estoque Mín.</label>
-                      <input name="min_stock" type="number" defaultValue={5} className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 outline-none dark:text-white text-sm" />
+                      <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase mb-1">Estoque Mín.</label>
+                      <input name="min_stock" type="number" defaultValue={5} className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 outline-none text-gray-900 dark:text-white text-sm" />
                     </div>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Buscar Produto</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Buscar Produto</label>
                   <div className="relative mb-2">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input
@@ -590,13 +590,13 @@ export const Modals: React.FC<ModalsProps> = ({
                         }
                       }}
                       placeholder="Digite o nome ou ID para filtrar..." 
-                      className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white text-sm"
+                      className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white text-sm"
                       autoFocus
                     />
                   </div>
 
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Produto</label>
-                  <select name="product_id" data-testid="select-product" required={!isCreatingProduct} value={selectedProductId} onChange={handleManualProductSelect} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Produto</label>
+                  <select name="product_id" data-testid="select-product" required={!isCreatingProduct} value={selectedProductId} onChange={handleManualProductSelect} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none text-gray-900 dark:text-white">
                     <option value="">Selecione um produto...</option>
                     {filteredProducts.map(p => (
                       <option key={p.id} value={p.id}>{p.name} (ID: {p.sku}) {showTransaction.type === 'EXIT' ? `- Est: ${p.current_stock}` : ''}</option>
@@ -622,11 +622,11 @@ export const Modals: React.FC<ModalsProps> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Quantidade</label>
-                  <input ref={quantityInputRef} name="quantity" data-testid="input-quantity" type="number" inputMode="numeric" required min="1" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="0" />
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Quantidade</label>
+                  <input ref={quantityInputRef} name="quantity" data-testid="input-quantity" type="number" inputMode="numeric" required min="1" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" placeholder="0" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">
                     {showTransaction.type === 'ENTRY' ? 'Custo (R$)' : 'Preço (R$)'}
                   </label>
                   <input 
@@ -638,7 +638,7 @@ export const Modals: React.FC<ModalsProps> = ({
                     required 
                     value={showTransaction.type === 'EXIT' ? exitSalePrice : undefined}
                     onChange={showTransaction.type === 'EXIT' ? (e) => setExitSalePrice(e.target.value) : undefined}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" 
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" 
                     placeholder="0,00" 
                   />
                 </div>
@@ -648,13 +648,13 @@ export const Modals: React.FC<ModalsProps> = ({
                 <>
                   {user?.role === 'gestor' && (
                     <div>
-                      <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Preço de Venda Sugerido (R$)</label>
-                      <input name="sale_price" type="number" inputMode="decimal" step="0.01" value={suggestedSalePrice} onChange={e => setSuggestedSalePrice(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="Ex: 29,90" />
+                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Preço de Venda Sugerido (R$)</label>
+                      <input name="sale_price" type="number" inputMode="decimal" step="0.01" value={suggestedSalePrice} onChange={e => setSuggestedSalePrice(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" placeholder="Ex: 29,90" />
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Data de Validade (Opcional)</label>
-                    <input name="expiry_date" data-testid="input-expiry-date" type="date" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Data de Validade (Opcional)</label>
+                    <input name="expiry_date" data-testid="input-expiry-date" type="date" className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" />
                   </div>
                 </>
               )}
@@ -662,19 +662,19 @@ export const Modals: React.FC<ModalsProps> = ({
               {showTransaction.type === 'EXIT' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Status</label>
-                    <select name="status" data-testid="select-status" required value={transactionStatus} onChange={(e) => setTransactionStatus(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Status</label>
+                    <select name="status" data-testid="select-status" required value={transactionStatus} onChange={(e) => setTransactionStatus(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none text-gray-900 dark:text-white">
                       <option value="PAID">Pago</option>
                       <option value="PENDING">A Receber</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Cliente</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Cliente</label>
                     <input 
                       name="client_name" 
                       data-testid="input-client-name" 
                       required={transactionStatus === 'PENDING'}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" 
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none text-gray-900 dark:text-white" 
                       placeholder={transactionStatus === 'PENDING' ? "Nome do Cliente (Obrigatório)" : "Opcional"} 
                     />
                   </div>

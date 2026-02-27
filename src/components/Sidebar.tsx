@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText, Users, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -39,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isIos, setIsIos] = useState(false);
   const [showIosInstructions, setShowIosInstructions] = useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
     // Detectar iOS e verificar se já não está instalado (standalone)
@@ -55,6 +56,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  // Carregar preferência salva ao iniciar
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+    } else if (savedTheme === 'light') {
+      setDarkMode(false);
+    }
+  }, []);
+
+  // Sincroniza a classe 'dark' e salva no LocalStorage
+  useEffect(() => {
+    const root = window.document.documentElement;
+    // Remove a classe para garantir estado limpo antes de adicionar
+    root.classList.remove('dark');
+
+    if (darkMode) {
+      root.classList.add('dark');
+    }
+
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   const handleInstall = () => {
     if (!installPrompt) return;
@@ -94,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={() => setDarkMode(!darkMode)}
               aria-label="Alternar tema"
-              className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-gray-400"
+              className="p-2 rounded-xl hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>

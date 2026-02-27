@@ -66,7 +66,7 @@ export const PlanSelection: React.FC<PlanSelectionProps> = ({ onPlanSelect }) =>
         <p className="text-gray-500 dark:text-gray-400 mt-2">Comece pequeno ou cresça sem limites. Temos a solução certa.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl w-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl w-full">
         {plans.map((plan) => (
           <div
             key={plan.name}

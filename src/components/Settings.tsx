@@ -14,7 +14,7 @@ const themeOptions = [
 
 export const Settings: React.FC<SettingsProps> = ({ theme, setTheme }) => {
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12 p-4 md:p-0">
+    <div className="w-full space-y-8 pb-12 p-4 md:p-0">
       <header className="space-y-2">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Identidade Visual</h2>
         <p className="text-gray-500 dark:text-gray-400">Personalize a aparência do sistema.</p>

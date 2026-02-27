@@ -94,15 +94,15 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative"
+        className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl max-w-md w-full p-6 relative"
       >
         <button type="button" onClick={onGoBack} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <X size={24} />
         </button>
         
         <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">Pagamento Necessário</h2>
-          <p className="text-gray-600 mt-1 text-sm capitalize">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Pagamento Necessário</h2>
+          <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm capitalize">
             Plano <strong>{planName}</strong>: {planDetails[planName] || ''}
           </p>
         </div>
@@ -113,21 +113,21 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({
         </div>
 
         <div className="flex justify-center mb-6">
-          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+          <div className="bg-white dark:bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
             <img src={qrCodeUrl} alt="QR Code PIX" className="w-40 h-40 object-contain" />
             <p className="text-[10px] text-center text-gray-400 mt-1">Escaneie com seu app do banco</p>
           </div>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-100">
+        <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl mb-6 border border-gray-100 dark:border-zinc-700">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-500">Valor Único:</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Valor Único:</span>
             <span className="text-xl font-bold text-green-600">{planPrice}</span>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-400 uppercase">Chave PIX (CPF/Celular)</label>
-            <div className="flex items-center gap-2 bg-white border border-gray-200 p-3 rounded-lg">
-              <span className="font-mono text-gray-800 flex-1 text-lg">{pixKey}</span>
+            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase">Chave PIX (CPF/Celular)</label>
+            <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 p-3 rounded-lg">
+              <span className="font-mono text-gray-800 dark:text-white flex-1 text-lg">{pixKey}</span>
               <button type="button" onClick={handleCopy} className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Copiar">
                 <Copy size={20} />
               </button>
@@ -148,7 +148,7 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({
         <button 
           type="button"
           onClick={onClose}
-          className="w-full mt-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl transition-colors"
+          className="w-full mt-3 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 font-bold py-3 px-4 rounded-xl transition-colors"
         >
           Já realizei o pagamento
         </button>

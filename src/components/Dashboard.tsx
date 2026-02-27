@@ -90,7 +90,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {!isColaborador && (
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
-            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Valor em Estoque</p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">Valor em Estoque</p>
             <h3 className="text-2xl font-bold dark:text-white">{formatBRL(totalValue)}</h3>
             <div className="mt-4 flex items-center gap-2 text-emerald-600 text-xs font-bold">
               <TrendingUp size={14} />
@@ -100,7 +100,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
         {!isColaborador && (
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
-            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Lucro Realizado</p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">Lucro Realizado</p>
             <h3 className={`text-2xl font-bold ${stats?.realized_profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatBRL(stats?.realized_profit || 0)}</h3>
             <div className="mt-4 flex items-center gap-2 text-emerald-600 text-xs font-bold">
               <TrendingUp size={14} />
@@ -113,7 +113,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             onClick={onViewFinanceiro}
             className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md hover:border-amber-200 dark:hover:border-amber-500/30 text-left group"
           >
-            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1 group-hover:text-amber-600 transition-colors">Lucro a Receber</p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1 group-hover:text-amber-600 transition-colors">Lucro a Receber</p>
             <h3 className={`text-2xl font-bold ${stats?.pending_profit >= 0 ? 'text-amber-500' : 'text-rose-600'}`}>{formatBRL(stats?.pending_profit || 0)}</h3>
             <div className="mt-4 flex items-center gap-2 text-amber-500 text-xs font-bold">
               <Clock size={14} />
@@ -122,7 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
         )}
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
-          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Baixo Estoque</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">Baixo Estoque</p>
           <h3 className="text-2xl font-bold text-rose-600">{lowStockProducts.length}</h3>
           <div className="mt-4 flex items-center gap-2 text-rose-600 text-xs font-bold">
             <AlertTriangle size={14} />
@@ -145,7 +145,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
         )}
         <div className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors col-span-1 ${!isColaborador ? 'md:col-span-2 lg:col-span-2' : ''}`}>
-          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total de SKUs</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">Total de SKUs</p>
           <h3 className="text-2xl font-bold dark:text-white">{products.length}</h3>
           <div className="mt-4 flex items-center gap-2 text-gray-400 dark:text-gray-500 text-xs font-bold">
             <Package size={14} />

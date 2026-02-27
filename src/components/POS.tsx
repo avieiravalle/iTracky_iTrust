@@ -562,7 +562,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
       </div>
 
       {/* Interface do PDV - Oculta na impressão */}
-      <div className={`print:hidden flex flex-col lg:flex-row bg-[#121214] text-gray-100 font-sans shadow-2xl border border-zinc-800 overflow-hidden transition-all duration-300 ${
+      <div className={`print:hidden flex flex-col lg:flex-row bg-white dark:bg-[#121214] text-gray-900 dark:text-gray-100 font-sans shadow-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden transition-all duration-300 ${
         isFullscreen 
           ? 'fixed inset-0 z-50 h-screen w-screen rounded-none border-0 m-0' 
           : 'h-[calc(100vh-7rem)] md:h-[calc(100vh-9rem)] rounded-xl relative'
@@ -836,7 +836,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-zinc-800"
+              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-zinc-800"
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-xl dark:text-white">Pagamento</h3>
@@ -872,20 +872,20 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
                 <div className="flex p-1 bg-gray-100 dark:bg-zinc-800 rounded-xl">
                   <button
                     onClick={() => { setTransactionStatus('PAID'); setAmountReceived(''); }}
-                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${transactionStatus === 'PAID' ? 'bg-white dark:bg-zinc-700 shadow text-blue-600 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${transactionStatus === 'PAID' ? 'bg-white dark:bg-zinc-700 shadow text-blue-600 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}
                   >
                     Pagamento Imediato
                   </button>
                   <button
                     onClick={() => { setTransactionStatus('PENDING'); setAmountReceived(''); }}
-                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${transactionStatus === 'PENDING' ? 'bg-white dark:bg-zinc-700 shadow text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${transactionStatus === 'PENDING' ? 'bg-white dark:bg-zinc-700 shadow text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-400'}`}
                   >
                     A Receber (Fiado)
                   </button>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">
                     Cliente {transactionStatus === 'PENDING' ? '(Obrigatório)' : '(Opcional)'}
                   </label>
                   <input 
@@ -893,53 +893,53 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="Nome do cliente"
-                    className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-2 focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white transition-colors ${transactionStatus === 'PENDING' && !clientName ? 'border-amber-500/50' : 'border-transparent'}`}
+                    className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-2 focus:ring-2 focus:ring-blue-500/20 outline-none text-gray-900 dark:text-white transition-colors ${transactionStatus === 'PENDING' && !clientName ? 'border-amber-500/50' : 'border-transparent'}`}
                     autoFocus={transactionStatus === 'PENDING'}
                   />
                 </div>
 
                 {transactionStatus === 'PENDING' && (
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Valor de Entrada (Opcional)</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Valor de Entrada (Opcional)</label>
                     <input 
                       type="number" 
                       step="0.01"
                       value={amountReceived}
                       onChange={(e) => setAmountReceived(e.target.value)}
                       placeholder="0,00"
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white text-lg font-bold"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none text-gray-900 dark:text-white text-lg font-bold"
                     />
                   </div>
                 )}
 
                 {(transactionStatus === 'PAID' || (transactionStatus === 'PENDING' && parseFloat(amountReceived) > 0)) ? (
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Forma de Pagamento {transactionStatus === 'PENDING' ? 'da Entrada' : ''}</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Forma de Pagamento {transactionStatus === 'PENDING' ? 'da Entrada' : ''}</label>
                     <div className="grid grid-cols-2 gap-3">
                       <button 
                         onClick={() => setPaymentMethod('money')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'money' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'money' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 dark:border-zinc-700 text-gray-600 dark:text-gray-300'}`}
                       >
                         <Banknote size={24} />
                         <span className="text-xs font-bold">Dinheiro</span>
                       </button>
                       <button 
                         onClick={() => setPaymentMethod('pix')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 dark:border-zinc-700 text-gray-600 dark:text-gray-300'}`}
                       >
                         <QrCode size={24} />
                         <span className="text-xs font-bold">PIX</span>
                       </button>
                       <button 
                         onClick={() => setPaymentMethod('credit')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'credit' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'credit' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 dark:border-zinc-700 text-gray-600 dark:text-gray-300'}`}
                       >
                         <CreditCard size={24} />
                         <span className="text-xs font-bold">Crédito</span>
                       </button>
                       <button 
                         onClick={() => setPaymentMethod('debit')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'debit' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'debit' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 dark:border-zinc-700 text-gray-600 dark:text-gray-300'}`}
                       >
                         <CreditCard size={24} />
                         <span className="text-xs font-bold">Débito</span>
@@ -987,14 +987,14 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
 
                 {transactionStatus === 'PAID' && paymentMethod === 'money' && (
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Valor Recebido</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-2">Valor Recebido</label>
                     <input 
                       type="number" 
                       step="0.01"
                       value={amountReceived}
                       onChange={(e) => setAmountReceived(e.target.value)}
                       placeholder="0,00"
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white text-lg font-bold"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none text-gray-900 dark:text-white text-lg font-bold"
                       autoFocus
                     />
                   </div>

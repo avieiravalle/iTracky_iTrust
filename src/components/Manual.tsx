@@ -117,7 +117,7 @@ export const Manual: React.FC = () => {
   ];
 
   return (
-    <div id="printable-manual" className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div id="printable-manual" className="w-full max-w-[1600px] mx-auto space-y-8 pb-12">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -146,34 +146,34 @@ export const Manual: React.FC = () => {
         <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4 shadow-xl shadow-black/10">
           <BookOpen className="text-white" size={32} />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900">Manual do Usuário</h2>
-        <p className="text-gray-500">Aprenda a extrair o máximo do seu sistema de gestão.</p>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Manual do Usuário</h2>
+        <p className="text-gray-500 dark:text-gray-400">Aprenda a extrair o máximo do seu sistema de gestão.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print-single-column">
         {sections.map((section, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow print-avoid-break">
+          <div key={idx} className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow print-avoid-break">
             <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-gray-50 rounded-2xl">
+              <div className="p-3 bg-gray-50 dark:bg-zinc-800 rounded-2xl">
                 {section.icon}
               </div>
-              <h3 className="font-bold text-lg text-gray-800">{section.title}</h3>
+              <h3 className="font-bold text-lg text-gray-800 dark:text-white">{section.title}</h3>
             </div>
-            <div className="text-gray-600 text-sm leading-relaxed">
+            <div className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
               {section.content}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-3xl p-8 flex flex-col md:flex-row items-center gap-6">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-3xl p-8 flex flex-col md:flex-row items-center gap-6">
         <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0">
           <HelpCircle size={32} />
         </div>
         <div>
-          <h4 className="font-bold text-blue-900 text-lg mb-1">Precisa de mais ajuda?</h4>
-          <p className="text-blue-700 text-sm">
-            Nossa equipe está à disposição para tirar dúvidas sobre cálculos de custo médio ou gestão de estoque. Entre em contato pelo suporte: <a href="mailto:avieiravale@gmail.com" className="font-bold underline hover:text-blue-900">avieiravale@gmail.com</a>
+          <h4 className="font-bold text-blue-900 dark:text-blue-100 text-lg mb-1">Precisa de mais ajuda?</h4>
+          <p className="text-blue-700 dark:text-blue-300 text-sm">
+            Nossa equipe está à disposição para tirar dúvidas sobre cálculos de custo médio ou gestão de estoque. Entre em contato pelo suporte: <a href="mailto:avieiravale@gmail.com" className="font-bold underline hover:text-blue-900 dark:hover:text-blue-100">avieiravale@gmail.com</a>
           </p>
         </div>
       </div>

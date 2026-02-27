@@ -245,7 +245,7 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
           <Palette className="w-6 h-6 text-blue-600 dark:text-blue-400" />
