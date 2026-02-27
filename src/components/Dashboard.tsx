@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, AlertTriangle, Package, Calendar, Clock, Lightbulb } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Package, Calendar, Clock, Lightbulb, Bell } from 'lucide-react';
 import { Product, Stats, MonthlyStat, User } from '../types';
 import { formatBRL } from '../utils/format';
 import { 
@@ -41,6 +41,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const isColaborador = user?.role === 'colaborador';
   const lowStockProducts = products.filter(p => p.current_stock <= p.min_stock);
   const totalValue = products.reduce((acc, p) => acc + (p.current_stock * p.average_cost), 0);
+  
+  const expiringProducts = products.filter(p => {
+    if (!p.expiry_date) return false;
+    const expiry = new Date(p.expiry_date);
+    const today = new Date();
+    const diffTime = expiry.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 90;
+  }).sort((a, b) => new Date(a.expiry_date!).getTime() - new Date(b.expiry_date!).getTime());
   
   const [showRadarModal, setShowRadarModal] = useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
@@ -87,6 +96,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Acompanhe o desempenho da sua loja.</p>
+        </div>
+        <button 
+          onClick={() => {
+            if (expiringProducts.length > 0) {
+              document.getElementById('expiring-section')?.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+          className="relative p-3 bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+          title={expiringProducts.length > 0 ? `${expiringProducts.length} produtos vencendo em breve` : 'Nenhuma notificação'}
+        >
+          <Bell size={20} className="text-gray-500 dark:text-gray-400" />
+          {expiringProducts.length > 0 && (
+            <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse border-2 border-white dark:border-zinc-900"></span>
+          )}
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {!isColaborador && (
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm transition-colors">
@@ -292,6 +322,46 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {expiringProducts.length > 0 && (
+        <div id="expiring-section" className="bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl p-6 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-amber-800 dark:text-amber-400">
+            <Clock size={20} />
+            <h3 className="font-bold">Vencimento Próximo (90 dias)</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {expiringProducts.map(p => {
+               const diffTime = new Date(p.expiry_date!).getTime() - new Date().getTime();
+               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+               
+               return (
+              <div key={p.id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-amber-200 dark:border-amber-500/30 flex flex-col gap-2 transition-colors">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-bold text-sm dark:text-white">{p.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">SKU: {p.sku}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-bold text-sm ${diffDays <= 30 ? 'text-rose-600' : 'text-amber-600 dark:text-amber-400'}`}>{diffDays} dias</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Restantes</p>
+                  </div>
+                </div>
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg mt-1">
+                    <p className="text-[10px] font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1">
+                        <Lightbulb size={12} />
+                        Dica de Venda:
+                    </p>
+                    <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-tight">
+                        {diffDays <= 30 ? "Liquidação Urgente! Desconto de 30-50%." : 
+                         diffDays <= 60 ? "Crie combos com produtos de alto giro." : 
+                         "Coloque em destaque na área de promoções."}
+                    </p>
+                </div>
+              </div>
+            )})}
           </div>
         </div>
       )}
