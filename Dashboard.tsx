@@ -7,17 +7,10 @@ interface DashboardProps {
   user: User | null;
   products?: Product[];
   stats?: Stats;
-  monthlyStats?: MonthlyStat[];
-  evolutionPeriod?: any;
-  setEvolutionPeriod?: any;
-  customDateRange?: any;
-  setCustomDateRange?: any;
-  darkMode?: boolean;
-  onViewFinanceiro?: () => void;
   onViewInventory?: () => void;
 }
 
-export function Dashboard({ user, products = [], stats, onViewInventory }: DashboardProps) {
+export function Dashboard({ products = [], stats, onViewInventory }: DashboardProps) {
   // Cálculos para os Cards com useMemo para otimização
   const totalStock = useMemo(() => products.reduce((acc, p) => acc + p.current_stock, 0), [products]);
   const lowStockCount = useMemo(() => products.filter(p => p.current_stock > 0 && p.current_stock <= p.min_stock).length, [products]);

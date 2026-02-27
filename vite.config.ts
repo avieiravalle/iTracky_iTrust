@@ -1,15 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import {defineConfig} from 'vite';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-  return {
+export default defineConfig({
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -19,12 +14,15 @@ export default defineConfig(({mode}) => {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      port: 3000,
+      port: 5173, // Porta padrão do Vite para evitar conflito com o backend na porta 3000
       allowedHosts: [
         'itrust.tec.br',
         'www.itrust.tec.br',
         'itracky.itrust.tec.br'
-      ]
+      ],
+      proxy: {
+        '/api': 'http://localhost:3000', // Redireciona chamadas /api para o seu backend
+        '/uploads': 'http://localhost:3000', // Redireciona chamadas de imagem para o backend
+      },
     },
-  };
 });

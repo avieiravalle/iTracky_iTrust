@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 import multer from "multer";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 let db: Database.Database | null = null;
 
@@ -141,13 +142,15 @@ function runMigrations(database: Database.Database) {
     // Ensure specific admin user exists
     const adminEmail = 'avieiravale@gmail.com';
     const adminPass = 'Anderson@46';
+    const saltRounds = 10;
+    const adminPassHash = bcrypt.hashSync(adminPass, saltRounds);
     const existingAdmin = database.prepare("SELECT * FROM users WHERE email = ?").get(adminEmail);
     
     if (existingAdmin) {
-      database.prepare("UPDATE users SET role = 'admin', password = ? WHERE email = ?").run(adminPass, adminEmail);
+      database.prepare("UPDATE users SET role = 'admin', password = ? WHERE email = ?").run(adminPassHash, adminEmail);
     } else {
       database.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role) VALUES (?, ?, ?, ?, ?, ?)")
-        .run('Anderson Admin', adminEmail, adminPass, '00000-000', 'Admin System', 'admin');
+        .run('Anderson Admin', adminEmail, adminPassHash, '00000-000', 'Admin System', 'admin');
     }
   } catch (e) {
     console.error("Migration failed:", e);
@@ -237,6 +240,74 @@ function logAudit(userId: number | null, userName: string | null, action: string
   }
 }
 
+async function performBackup(userId: number | null = null, userName: string = 'Sistema') {
+  const db = getDb();
+  const backupDir = path.join(__dirname, 'backups');
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupName = `inventory-${timestamp}.db`;
+  const backupPath = path.join(backupDir, backupName);
+
+  await db.backup(backupPath);
+
+  // Limpeza automática (mantém apenas os 5 mais recentes)
+  const files = fs.readdirSync(backupDir)
+    .filter(f => f.startsWith('inventory-') && f.endsWith('.db'))
+    .map(f => ({ name: f, time: fs.statSync(path.join(backupDir, f)).mtime.getTime() }))
+    .sort((a, b) => b.time - a.time);
+
+  if (files.length > 5) {
+    files.slice(5).forEach(f => {
+      try { fs.unlinkSync(path.join(backupDir, f.name)); } catch(e) {}
+    });
+  }
+
+  const action = userId ? 'BACKUP_CRIADO' : 'BACKUP_AUTOMATICO';
+  const details = userId ? `Backup manual realizado: ${backupName}` : `Backup automático realizado: ${backupName}`;
+  
+  logAudit(userId, userName, action, details);
+
+  // Envia notificação por e-mail se for backup automático
+  if (!userId) {
+    transporter.sendMail({
+      from: '"StockFlow System" <noreply@estoque.com>',
+      to: 'avieiravale@gmail.com',
+      subject: '✅ Backup Automático Realizado',
+      html: `
+        <h3>Backup de Segurança Realizado</h3>
+        <p>O sistema realizou um backup automático com sucesso.</p>
+        <p><strong>Arquivo:</strong> ${backupName}</p>
+        <p><strong>Data/Hora:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+      `
+    }).catch(err => console.error("Erro ao enviar e-mail de backup:", err));
+  }
+
+  return backupName;
+}
+
+function scheduleDailyBackup() {
+  const now = new Date();
+  const nextMidnight = new Date(now);
+  nextMidnight.setHours(24, 0, 0, 0); // Define para a próxima meia-noite
+  
+  const msUntilMidnight = nextMidnight.getTime() - now.getTime();
+  
+  console.log(`[SISTEMA] Próximo backup automático em ${(msUntilMidnight / 1000 / 60 / 60).toFixed(2)} horas.`);
+
+  setTimeout(async () => {
+    try {
+      await performBackup();
+      console.log("[SISTEMA] Backup automático concluído.");
+    } catch (e) {
+      console.error("[SISTEMA] Erro no backup automático:", e);
+    }
+    scheduleDailyBackup(); // Reagenda para o dia seguinte
+  }, msUntilMidnight);
+}
+
 export async function createApp() {
   initDb();
   const db = getDb();
@@ -316,7 +387,7 @@ export async function createApp() {
     }
   });
 
-  app.post("/api/register", (req, res) => {
+  app.post("/api/register", async (req, res) => {
     const { name, email, password, cep, establishment_name, role, store_code, plan } = req.body;
     try {
       // Check if email exists
@@ -324,6 +395,9 @@ export async function createApp() {
       if (existing) {
         return res.status(400).json({ error: "Este e-mail já está cadastrado" });
       }
+
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
 
       if (role === 'gestor') {
         // Generate a random store code if not provided (though UI should handle it)
@@ -334,7 +408,7 @@ export async function createApp() {
         const initialStatus = isTest ? 'active' : 'pending';
         const finalPlan = plan || 'Basic'; // Garante um plano padrão se não for enviado
         const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role, store_code, status, plan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .run(name, email, password, cep, establishment_name, 'gestor', finalCode, initialStatus, finalPlan);
+          .run(name, email, passwordHash, cep, establishment_name, 'gestor', finalCode, initialStatus, finalPlan);
         
         // Alerta por E-mail para o Admin
         if (!isTest) {
@@ -378,11 +452,11 @@ export async function createApp() {
         if (count.count >= 4) return res.status(400).json({ error: "Limite de colaboradores atingido" });
 
         const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name, role, parent_id, store_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-          .run(name, email, password, cep, store.establishment_name, 'colaborador', store.id, store_code);
+          .run(name, email, passwordHash, cep, store.establishment_name, 'colaborador', store.id, store_code);
         logAudit(info.lastInsertRowid as number, name, 'CADASTRO_COLABORADOR', `Novo colaborador vinculado à loja ${store.establishment_name}`);
         res.json({ id: info.lastInsertRowid });
       } else {
-        const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name) VALUES (?, ?, ?, ?, ?)").run(name, email, password, cep, establishment_name);
+        const info = db.prepare("INSERT INTO users (name, email, password, cep, establishment_name) VALUES (?, ?, ?, ?, ?)").run(name, email, passwordHash, cep, establishment_name);
         logAudit(info.lastInsertRowid as number, name, 'CADASTRO_USER', `Novo usuário registrado: ${email}`);
         res.json({ id: info.lastInsertRowid });
       }
@@ -391,10 +465,12 @@ export async function createApp() {
     }
   });
 
-  app.post("/api/login", (req, res) => {
+  app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
-    const user = db.prepare("SELECT * FROM users WHERE email = ? AND password = ?").get(email, password) as any;
-    if (user) {
+    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+
+    const passwordMatch = user ? await bcrypt.compare(password, user.password) : false;
+    if (user && passwordMatch) {
       if (user.status === 'pending') {
         return res.status(403).json({ error: "Cadastro em análise. Realize o pagamento PIX (Chave: 29556537805) e envie o comprovante no WhatsApp para liberar seu acesso." });
       }
@@ -445,7 +521,7 @@ export async function createApp() {
     }
   });
 
-  app.post("/api/reset-password", (req, res) => {
+  app.post("/api/reset-password", async (req, res) => {
     const { email, token, newPassword } = req.body;
     try {
       const resetRecord = db.prepare("SELECT * FROM password_resets WHERE email = ? AND token = ?").get(email, token) as any;
@@ -454,8 +530,11 @@ export async function createApp() {
         return res.status(400).json({ error: "Código inválido ou expirado" });
       }
 
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
       // Ao resetar a senha, limpamos o token atual para forçar logout em todos os dispositivos
-      db.prepare("UPDATE users SET password = ?, current_token = NULL WHERE email = ?").run(newPassword, email);
+      db.prepare("UPDATE users SET password = ?, current_token = NULL WHERE email = ?").run(passwordHash, email);
       
       db.prepare("DELETE FROM password_resets WHERE email = ?").run(email);
 
@@ -1123,6 +1202,62 @@ export async function createApp() {
     }
   });
 
+  // --- ROTAS DE BACKUP (ADMIN) ---
+
+  app.post("/api/admin/backup", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== 'admin') return res.status(403).json({ error: "Acesso negado." });
+
+      const backupName = await performBackup(user.id, user.name);
+      res.json({ success: true, filename: backupName });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/backups", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== 'admin') return res.status(403).json({ error: "Acesso negado." });
+
+      const backupDir = path.join(__dirname, 'backups');
+      if (!fs.existsSync(backupDir)) return res.json([]);
+
+      const files = fs.readdirSync(backupDir)
+        .filter(f => f.startsWith('inventory-') && f.endsWith('.db'))
+        .map(f => {
+          const stats = fs.statSync(path.join(backupDir, f));
+          return { name: f, size: stats.size, created_at: stats.mtime };
+        })
+        .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+
+      res.json(files);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/backups/:filename", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== 'admin') return res.status(403).json({ error: "Acesso negado." });
+
+      const { filename } = req.params;
+      const backupDir = path.join(__dirname, 'backups');
+      const backupPath = path.join(backupDir, filename);
+
+      // Segurança: Previne Path Traversal (tentativa de acessar outros arquivos do sistema)
+      if (!filename.match(/^inventory-[\w-]+\.db$/) || !fs.existsSync(backupPath)) {
+        return res.status(404).json({ error: "Arquivo não encontrado ou inválido." });
+      }
+
+      res.download(backupPath);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Webhook para Aprovação Automática
   // Nota: Para funcionar, você deve configurar esta URL no seu gateway de pagamento (ex: Mercado Pago)
   // e passar o ID do usuário como referência externa na criação do pagamento.
@@ -1413,6 +1548,9 @@ export async function createApp() {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
+
+  // Inicia o agendamento do backup automático
+  scheduleDailyBackup();
 
   return app;
 }
