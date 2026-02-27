@@ -38,6 +38,7 @@ export const Auth: React.FC<AuthProps> = ({
   const [storeName, setStoreName] = useState('');
   const [storeError, setStoreError] = useState('');
   const [loginLogo, setLoginLogo] = useState<string | null>(null);
+  const [loginBackground, setLoginBackground] = useState<string | null>(null);
   const [storeLogo, setStoreLogo] = useState<string | null>(null);
   
   // Password Recovery State
@@ -65,6 +66,7 @@ export const Auth: React.FC<AuthProps> = ({
         if (res.ok) {
           const data = await res.json();
           setLoginLogo(data.logo_url || null);
+          setLoginBackground(data.login_background_url || null);
         }
       } catch (error) {
         console.error("Failed to fetch admin logo:", error);
@@ -258,11 +260,11 @@ export const Auth: React.FC<AuthProps> = ({
 
   if (screen === 'login' && authMode !== 'default') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-zinc-900 dark:to-zinc-950 flex items-center justify-center p-4">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100"
+          className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100 dark:border-zinc-800"
         >
           <button type="button" onClick={() => setAuthMode('default')} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 mb-6 text-sm font-bold">
             <ArrowLeft size={16} /> Voltar
@@ -272,8 +274,8 @@ export const Auth: React.FC<AuthProps> = ({
             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
               <KeyRound size={24} />
             </div>
-            <h2 className="text-xl font-bold text-center">Recuperar Senha</h2>
-            <p className="text-gray-500 text-sm text-center mt-2">
+            <h2 className="text-xl font-bold text-center dark:text-white">Recuperar Senha</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm text-center mt-2">
               {authMode === 'forgot' ? 'Digite seu e-mail para receber o código.' : 'Digite o código recebido e sua nova senha.'}
             </p>
           </div>
@@ -282,7 +284,7 @@ export const Auth: React.FC<AuthProps> = ({
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase mb-2">E-mail Cadastrado</label>
-                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none" placeholder="seu@email.com" />
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none" placeholder="seu@email.com" />
               </div>
               <button type="submit" className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">Enviar Código</button>
             </form>
@@ -290,12 +292,12 @@ export const Auth: React.FC<AuthProps> = ({
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Código de 6 Dígitos</label>
-                <input type="text" required value={resetToken} onChange={e => setResetToken(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none text-center tracking-widest font-bold text-lg" placeholder="000000" maxLength={6} />
+                <input type="text" required value={resetToken} onChange={e => setResetToken(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none text-center tracking-widest font-bold text-lg" placeholder="000000" maxLength={6} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nova Senha</label>
                 <div className="relative">
-                  <input type={showPassword ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none pr-12" placeholder="Nova senha" />
+                  <input type={showPassword ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none pr-12" placeholder="Nova senha" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
@@ -305,7 +307,7 @@ export const Auth: React.FC<AuthProps> = ({
             </form>
           )}
           <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-            <p className="text-xs text-[#2D3436]/70 font-medium">
+            <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
               iTrust ERP – Gestão inteligente, confiança absoluta.
             </p>
           </div>
@@ -316,11 +318,21 @@ export const Auth: React.FC<AuthProps> = ({
 
   if (screen === 'login') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+        {loginBackground ? (
+          <div 
+            className="absolute inset-0 z-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${loginBackground})` }}
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+          </div>
+        ) : (
+          <div className="absolute inset-0 z-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-zinc-900 dark:to-zinc-950"></div>
+        )}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100"
+          className="relative z-10 bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100 dark:border-zinc-800"
         >
           <div className="flex items-center gap-3 mb-8 justify-center">
             {loginLogo ? (
@@ -330,7 +342,7 @@ export const Auth: React.FC<AuthProps> = ({
                 <Package className="text-white w-6 h-6" />
               </div>
             )}
-            <h1 className="font-bold text-2xl tracking-tight">iTracky</h1>
+            <h1 className="font-bold text-2xl tracking-tight dark:text-white">iTracky</h1>
           </div>
           <h2 className="text-xl font-bold mb-6 text-center dark:text-white">Entrar na sua conta</h2>
           <form onSubmit={onLogin} className="space-y-4">
@@ -397,7 +409,7 @@ export const Auth: React.FC<AuthProps> = ({
             <button type="submit" data-testid="btn-login-submit" className="w-full px-4 py-3 bg-[var(--login-theme-color,theme(colors.blue.600))] text-white rounded-xl font-bold hover:brightness-90 transition-all shadow-lg shadow-blue-600/20">Entrar</button>
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
-            Não tem uma conta? <button type="button" onClick={() => { setScreen('register'); onClearError?.(); }} className="text-[var(--login-theme-color,theme(colors.blue.600))] font-bold hover:underline">Cadastre-se</button>
+            Não tem uma conta? <button type="button" onClick={() => { setScreen('register'); onClearError?.(); }} className="text-[var(--login-theme-color,theme(colors.blue.600))] dark:text-blue-400 font-bold hover:underline">Cadastre-se</button>
           </p>
           <div className="mt-4 pt-4 border-t border-gray-100 text-center">
             <button 
@@ -408,7 +420,7 @@ export const Auth: React.FC<AuthProps> = ({
               <ShieldCheck size={14} />
               Entrar como Adm
             </button>
-            <p className="text-xs text-[#2D3436]/70 font-medium">
+            <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
               iTrust ERP – Gestão inteligente, confiança absoluta.
             </p>
           </div>
@@ -446,11 +458,11 @@ export const Auth: React.FC<AuthProps> = ({
   if (screen === 'register' && registrationStep !== 'form') return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-zinc-900 dark:to-zinc-950 flex items-center justify-center p-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100"
+        className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-8 shadow-2xl border border-gray-100 dark:border-zinc-800"
       >
         <div className="flex items-center gap-3 mb-8 justify-center">
           {(role === 'colaborador' && storeLogo) ? (
@@ -460,15 +472,15 @@ export const Auth: React.FC<AuthProps> = ({
               <Package className="text-white w-6 h-6" />
             </div>
           )}
-          <h1 className="font-bold text-2xl tracking-tight">iTracky</h1>
+          <h1 className="font-bold text-2xl tracking-tight dark:text-white">iTracky</h1>
         </div>
-        <h2 className="text-xl font-bold mb-6 text-center">Criar nova conta</h2>
+        <h2 className="text-xl font-bold mb-6 text-center dark:text-white">Criar nova conta</h2>
         
         <div className="flex gap-2 mb-6">
           <button 
             type="button"
             onClick={() => { setRole('gestor'); setStoreCode(''); setStoreName(''); setStoreError(''); }}
-            className={`flex-1 py-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${role === 'gestor' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-100 text-gray-400'}`}
+            className={`flex-1 py-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${role === 'gestor' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-100 dark:border-zinc-700 text-gray-400'}`}
             data-testid="btn-role-gestor"
           >
             <UserPlus size={20} />
@@ -477,7 +489,7 @@ export const Auth: React.FC<AuthProps> = ({
           <button 
             type="button"
             onClick={() => { setRole('colaborador'); setStoreCode(''); setStoreName(''); setStoreError(''); }}
-            className={`flex-1 py-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${role === 'colaborador' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-100 text-gray-400'}`}
+            className={`flex-1 py-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${role === 'colaborador' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-100 dark:border-zinc-700 text-gray-400'}`}
           >
             <Users size={20} />
             <span className="text-[10px] font-bold uppercase">Colaborador</span>
@@ -501,7 +513,7 @@ export const Auth: React.FC<AuthProps> = ({
                     setStoreCode(val);
                     if (val.length === 6) validateStoreCode(val);
                   }}
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" 
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" 
                   placeholder="ABC123" 
                 />
                 {validatingStore && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />}
@@ -517,7 +529,7 @@ export const Auth: React.FC<AuthProps> = ({
 
           {role === 'gestor' && (
             <div className="space-y-4 mb-4">
-              <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center">
+              <div className="p-4 bg-gray-50 dark:bg-zinc-800 rounded-2xl border border-dashed border-gray-200 dark:border-zinc-700 text-center">
                 <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Seu Código de Loja</p>
                 <p className="text-2xl font-black tracking-widest">{storeCode}</p>
                 <p className="text-[9px] text-gray-500 mt-1">Compartilhe este código com seus colaboradores (máx 4)</p>
@@ -527,18 +539,18 @@ export const Auth: React.FC<AuthProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-4 space-y-4 lg:space-y-0">
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome Completo</label>
-              <input name="name" required value={name} data-testid="input-name" onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="Seu nome" />
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome</label>
+              <input name="name" required value={name} data-testid="input-name" onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="Seu nome" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase mb-2">E-mail</label>
-              <input name="email" type="email" required value={email} data-testid="input-email" onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="seu@email.com" />
+              <input name="email" type="email" required value={email} data-testid="input-email" onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none" placeholder="seu@email.com" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Senha</label>
             <div className="relative">
-              <input name="password" type={showPassword ? "text" : "password"} value={password || ''} data-testid="input-password" onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none pr-12" placeholder="••••••••" />
+              <input name="password" type={showPassword ? "text" : "password"} value={password || ''} data-testid="input-password" onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none pr-12" placeholder="••••••••" />
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -558,7 +570,7 @@ export const Auth: React.FC<AuthProps> = ({
                   data-testid="input-cep"
                   onChange={handleCepChange}
                   required 
-                  className={`w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 outline-none transition-all ${
+                  className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 outline-none transition-all ${
                     cepStatus === 'success' ? 'focus:ring-emerald-500/20 pr-10' : 
                     cepStatus === 'error' ? 'focus:ring-rose-500/20 pr-10' : 'focus:ring-black/5'
                   }`} 
@@ -580,7 +592,7 @@ export const Auth: React.FC<AuthProps> = ({
                 value={establishmentName}
                 data-testid="input-establishment"
                 onChange={(e) => setEstablishmentName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none disabled:opacity-50" 
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 dark:text-white rounded-xl border-none focus:ring-2 focus:ring-black/5 outline-none disabled:opacity-50" 
                 placeholder={role === 'colaborador' ? "Aguardando código..." : "Nome da Loja"} 
               />
             </div>
@@ -605,10 +617,10 @@ export const Auth: React.FC<AuthProps> = ({
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-500">
-          Já tem uma conta? <button type="button" onClick={() => { setScreen('login'); onClearError?.(); }} className="text-blue-600 font-bold hover:underline">Fazer Login</button>
+          Já tem uma conta? <button type="button" onClick={() => { setScreen('login'); onClearError?.(); }} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Fazer Login</button>
         </p>
         <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-          <p className="text-xs text-[#2D3436]/70 font-medium">
+          <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
             iTrust ERP – Gestão inteligente, confiança absoluta.
           </p>
         </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Upload, RefreshCw, Palette, Trash2, Sun, Moon, Monitor, Loader2, QrCode } from 'lucide-react';
+import { Save, Upload, RefreshCw, Palette, Trash2, Sun, Moon, Monitor, Loader2, QrCode, Image as ImageIcon } from 'lucide-react';
 import { User } from '../types';
 
 interface StoreSettingsProps {
   user: User | null;
   onUpdateUser: () => void;
+  setDarkMode: (mode: boolean) => void;
 }
 
 const PREDEFINED_THEMES = [
@@ -16,7 +17,7 @@ const PREDEFINED_THEMES = [
   { name: 'Sunset', colors: { primary: '#7c2d12', secondary: '#f97316', accent: '#fdba74' } },
 ];
 
-export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
+export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettingsProps) {
   // Inicializa o estado apenas uma vez com os dados do usuário ou padrão
   const [colors, setColors] = useState(() => {
     const userColors = (user as any)?.custom_colors;
@@ -25,9 +26,11 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>((user as any)?.theme_preference || 'system');
   const [pixKey, setPixKey] = useState((user as any)?.pix_key || '');
   const [logoUrl, setLogoUrl] = useState((user as any)?.logo_url || '');
+  const [loginBgUrl, setLoginBgUrl] = useState((user as any)?.login_background_url || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
 
   // Referência para manter o usuário atualizado sem disparar re-renders do efeito de cor
   const userRef = useRef(user);
@@ -39,6 +42,9 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
     }
     if ((user as any)?.pix_key !== pixKey) {
       setPixKey((user as any)?.pix_key || '');
+    }
+    if ((user as any)?.login_background_url !== loginBgUrl) {
+      setLoginBgUrl((user as any)?.login_background_url || '');
     }
   }, [user]);
 
@@ -63,6 +69,17 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
       }
     };
   }, [colors]); // Removemos 'user' das dependências para evitar reversão ao salvar
+
+  // Efeito de Preview do Tema em Tempo Real
+  useEffect(() => {
+    if (themeMode === 'dark') {
+      setDarkMode(true);
+    } else if (themeMode === 'light') {
+      setDarkMode(false);
+    } else {
+      setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+  }, [themeMode, setDarkMode]);
 
   const handleColorChange = (key: keyof typeof colors, value: string) => {
     setColors(prev => ({ ...prev, [key]: value }));
@@ -114,6 +131,39 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
     }
   };
 
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('background', file);
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/store-settings/login-background', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLoginBgUrl(data.login_background_url);
+        onUpdateUser();
+        alert('Imagem de fundo atualizada!');
+      } else {
+        throw new Error(data.error || 'Falha no upload');
+      }
+    } catch (error: any) {
+      alert(`Erro: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      if (bgInputRef.current) {
+        bgInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleRemoveLogo = async () => {
     if (window.confirm('Tem certeza que deseja remover o logo da empresa?')) {
       setIsSaving(true);
@@ -130,6 +180,30 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
         } else {
           const data = await res.json();
           throw new Error(data.error || 'Falha ao remover logo.');
+        }
+      } catch (error: any) {
+        alert(`Erro: ${error.message}`);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  const handleRemoveBg = async () => {
+    if (window.confirm('Remover imagem de fundo personalizada?')) {
+      setIsSaving(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/store-settings/login-background', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.ok) {
+          setLoginBgUrl('');
+          onUpdateUser();
+          alert('Imagem removida.');
+        } else {
+          throw new Error('Falha ao remover imagem.');
         }
       } catch (error: any) {
         alert(`Erro: ${error.message}`);
@@ -288,6 +362,32 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Esta chave será usada para gerar o QR Code automaticamente na tela de vendas (PDV).
             </p>
+          </div>
+        </div>
+
+        {/* Seção de Background de Login */}
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Imagem de Fundo (Login)</h3>
+          <input 
+            type="file" 
+            ref={bgInputRef} 
+            onChange={handleBgUpload} 
+            accept="image/*"
+            className="hidden" 
+          />
+          <div className="flex flex-col items-center justify-center gap-4 border-2 border-dashed border-gray-200 dark:border-zinc-700 rounded-xl p-8 relative overflow-hidden">
+            {loginBgUrl && (
+              <img src={loginBgUrl} alt="Background Preview" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+            )}
+            <div className="relative z-10 flex flex-col items-center gap-3">
+              <button onClick={() => bgInputRef.current?.click()} disabled={isUploading} className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 shadow-sm">
+                <ImageIcon size={18} />
+                <span>{loginBgUrl ? 'Trocar Imagem' : 'Carregar Imagem'}</span>
+              </button>
+              {loginBgUrl && (
+                <button onClick={handleRemoveBg} className="text-rose-500 text-xs font-bold hover:underline">Remover Imagem</button>
+              )}
+            </div>
           </div>
         </div>
 

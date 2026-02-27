@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Shield, ToggleLeft, ToggleRight, Trash2, Loader2, BookOpen, Clock, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { User as UserType } from '../types';
 
 // Tipos que estariam em src/types.ts
 interface Collaborator {
@@ -18,10 +19,10 @@ interface AuditLog {
 }
 
 interface TeamManagementProps {
-  // Este componente agora é autônomo e não precisa de props para dados.
+  user: UserType | null;
 }
 
-export const TeamManagement: React.FC<TeamManagementProps> = () => {
+export const TeamManagement: React.FC<TeamManagementProps> = ({ user }) => {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | null>(null);
@@ -39,6 +40,17 @@ export const TeamManagement: React.FC<TeamManagementProps> = () => {
       });
       const data = await res.json();
       if (res.ok) {
+        // Adiciona o gestor (usuário atual) à lista para visualização de logs
+        if (user) {
+          const managerAsCollab: Collaborator = {
+            id: user.id,
+            name: `${user.name} (Você)`,
+            email: user.email,
+            status: user.status as any,
+            last_login: null // Gestor está logado agora
+          };
+          data.unshift(managerAsCollab);
+        }
         setCollaborators(data);
         // Se não houver colaborador selecionado e a lista não estiver vazia, seleciona o primeiro.
         if (!selectedCollaborator && data.length > 0) {
@@ -177,7 +189,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = () => {
                   className={`w-full text-left p-3 rounded-xl transition-colors flex items-center justify-between ${selectedCollaborator?.id === collab.id ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${collab.status === 'active' ? 'bg-emerald-500' : 'bg-gray-400'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${collab.id === user?.id ? 'bg-blue-600' : (collab.status === 'active' ? 'bg-emerald-500' : 'bg-gray-400')}`}>
                       {collab.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -231,6 +243,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 self-start sm:self-center">
+                  {selectedCollaborator.id !== user?.id && (
+                  <>
                   <button
                     onClick={() => handleToggleCollaboratorStatus(selectedCollaborator.id, selectedCollaborator.status === 'active' ? 'inactive' : 'active')}
                     className={`p-2 rounded-lg transition-colors ${selectedCollaborator.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200'}`}
@@ -245,6 +259,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = () => {
                   >
                     <Trash2 size={20} />
                   </button>
+                  </>
+                  )}
                 </div>
               </div>
 

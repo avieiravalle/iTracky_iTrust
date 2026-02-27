@@ -63,6 +63,7 @@ export default function App() {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isPdvDirty, setIsPdvDirty] = useState(false);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -84,26 +85,30 @@ export default function App() {
 
   // Aplicar cores personalizadas
   useEffect(() => {
+    // Se estiver na aba de configurações, não sobrescreve o tema/cores com os dados do usuário (permite preview)
+    if (activeTab === 'settings') return;
+
     const customColors = (user as any)?.custom_colors;
     if (customColors) {
       document.documentElement.style.setProperty('--color-primary', customColors.primary);
       document.documentElement.style.setProperty('--color-secondary', customColors.secondary);
       document.documentElement.style.setProperty('--color-accent', customColors.accent);
-
-      // Aplicar preferência de tema da loja
-      if (customColors.theme_mode) {
-        if (customColors.theme_mode === 'dark') setDarkMode(true);
-        else if (customColors.theme_mode === 'light') setDarkMode(false);
-        else if (customColors.theme_mode === 'system') {
-          setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
-        }
-      }
     } else {
       document.documentElement.style.removeProperty('--color-primary');
       document.documentElement.style.removeProperty('--color-secondary');
       document.documentElement.style.removeProperty('--color-accent');
     }
-  }, [user]);
+
+    // Aplicar preferência de tema da loja
+    const themePref = (user as any)?.theme_preference;
+    if (themePref) {
+      if (themePref === 'dark') setDarkMode(true);
+      else if (themePref === 'light') setDarkMode(false);
+      else if (themePref === 'system') {
+        setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+    }
+  }, [user, activeTab]);
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -393,6 +398,16 @@ export default function App() {
     }
   };
 
+  const handleTabChange = (tab: typeof activeTab) => {
+    if (activeTab === 'pdv' && isPdvDirty) {
+      if (!window.confirm('Há itens no carrinho. Se você sair, a venda será perdida. Deseja continuar?')) {
+        return;
+      }
+      setIsPdvDirty(false);
+    }
+    setActiveTab(tab);
+  };
+
   // Restaurar sessão ao carregar a página (Persistência de Login)
   useEffect(() => {
     const restoreSession = async () => {
@@ -525,11 +540,11 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F7F6] dark:bg-[#0f172a] text-[#2D3436] dark:text-white pb-20 md:pb-0 transition-colors font-sans">
+    <div className="min-h-screen bg-[#F4F7F6] dark:bg-[#0f172a] text-[#2D3436] dark:text-gray-100 pb-20 md:pb-0 transition-colors font-sans antialiased selection:bg-blue-500 selection:text-white">
       <Sidebar 
         user={user} 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={handleTabChange} 
         onLogout={handleLogout}
         onShowTransaction={(type) => setShowTransaction({ type })}
         onShowReportModal={() => setShowReportModal(true)}
@@ -645,10 +660,11 @@ export default function App() {
                 products={products} 
                 user={user} 
                 onCheckoutComplete={fetchData} 
+                onCartChange={setIsPdvDirty}
               />
             )}
             {activeTab === 'team' && <TeamManagement user={user} />}
-            {activeTab === 'settings' && <StoreSettings user={user} onUpdateUser={fetchData} />}
+            {activeTab === 'settings' && <StoreSettings user={user} onUpdateUser={fetchData} setDarkMode={setDarkMode} />}
             {activeTab === 'admin' && <AdminDashboard />}
           </motion.div>
         </AnimatePresence>

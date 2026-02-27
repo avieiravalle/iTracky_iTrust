@@ -144,6 +144,9 @@ function runMigrations(database: Database.Database) {
     if (!tableInfo.some(col => col.name === 'pix_key')) {
       database.exec("ALTER TABLE users ADD COLUMN pix_key TEXT");
     }
+    if (!tableInfo.some(col => col.name === 'login_background_url')) {
+      database.exec("ALTER TABLE users ADD COLUMN login_background_url TEXT");
+    }
 
     // Ensure specific admin user exists
     const adminEmail = 'avieiravale@gmail.com';
@@ -361,8 +364,11 @@ export async function createApp() {
   // Rota pública para buscar o branding do admin
   app.get("/api/branding/admin", (req, res) => {
     try {
-      const admin = db.prepare("SELECT logo_url FROM users WHERE role = 'admin'").get() as any;
-      res.json({ logo_url: admin?.logo_url || null });
+      const admin = db.prepare("SELECT logo_url, login_background_url FROM users WHERE role = 'admin'").get() as any;
+      res.json({ 
+        logo_url: admin?.logo_url || null,
+        login_background_url: admin?.login_background_url || null
+      });
     } catch (error: any) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -635,11 +641,11 @@ export async function createApp() {
       const stats = db.prepare(`
         SELECT 
           COALESCE(SUM(CASE 
-            WHEN t.type = 'EXIT' AND t.unit_cost > 0 THEN (t.amount_paid - (t.cost_at_transaction * (t.amount_paid / t.unit_cost)))
+            WHEN t.type = 'EXIT' AND t.unit_cost > 0 THEN (COALESCE(t.amount_paid, 0) - (COALESCE(t.cost_at_transaction, 0) * (COALESCE(t.amount_paid, 0) / t.unit_cost)))
             ELSE 0 
           END), 0) as realized_profit,
           COALESCE(SUM(CASE 
-            WHEN t.type = 'EXIT' AND t.status = 'PENDING' AND t.unit_cost > 0 THEN ((t.unit_cost * t.quantity - t.amount_paid) - (t.cost_at_transaction * ((t.unit_cost * t.quantity - t.amount_paid) / t.unit_cost)))
+            WHEN t.type = 'EXIT' AND t.status = 'PENDING' AND t.unit_cost > 0 THEN ((t.unit_cost * t.quantity - COALESCE(t.amount_paid, 0)) - (COALESCE(t.cost_at_transaction, 0) * ((t.unit_cost * t.quantity - COALESCE(t.amount_paid, 0)) / t.unit_cost)))
             ELSE 0 
           END), 0) as pending_profit
         FROM transactions t
@@ -992,6 +998,37 @@ export async function createApp() {
     }
   });
 
+  // Rota para upload de background de login
+  app.post("/api/store-settings/login-background", authenticateToken, upload.single('background'), (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+      }
+      
+      const url = `/uploads/${req.file.filename}`;
+      db.prepare("UPDATE users SET login_background_url = ? WHERE id = ?").run(url, user.id);
+      
+      logAudit(user.id, user.name, 'UPDATE_LOGIN_BG', `Background de login atualizado.`);
+      res.json({ success: true, login_background_url: url });
+
+    } catch (error: any) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/store-settings/login-background", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      db.prepare("UPDATE users SET login_background_url = NULL WHERE id = ?").run(user.id);
+      logAudit(user.id, user.name, 'REMOVE_LOGIN_BG', `Background de login removido.`);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Rota para Excluir Produto (Apenas Gestor)
   app.delete("/api/products/:id", authenticateToken, (req: AuthRequest, res) => {
     const { id } = req.params;
@@ -1064,10 +1101,12 @@ export async function createApp() {
         return res.status(403).json({ error: "Acesso negado." });
       }
 
-      // Security check: ensure the requested collaborator belongs to the gestor.
-      const collaborator = db.prepare("SELECT id FROM users WHERE id = ? AND parent_id = ?").get(collaboratorId, user.id);
-      if (!collaborator) {
-        return res.status(404).json({ error: "Colaborador não encontrado na sua equipe." });
+      // Security check: ensure the requested collaborator belongs to the gestor OR is the gestor themselves.
+      if (parseInt(collaboratorId) !== user.id) {
+        const collaborator = db.prepare("SELECT id FROM users WHERE id = ? AND parent_id = ?").get(collaboratorId, user.id);
+        if (!collaborator) {
+          return res.status(404).json({ error: "Colaborador não encontrado na sua equipe." });
+        }
       }
 
       const logs = db.prepare("SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50").all(collaboratorId);

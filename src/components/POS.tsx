@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, ScanBarcode, Delete, X, CreditCard, Banknote, QrCode, CheckCircle2, Keyboard, Monitor, Tag, Clock, Copy, AlertCircle, Maximize, Minimize, Printer } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, ScanBarcode, Delete, X, CreditCard, Banknote, QrCode, CheckCircle2, Keyboard, Monitor, Tag, Clock, Copy, AlertCircle, Maximize, Minimize, Printer, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, User } from '../types';
 import { formatBRL } from '../utils/format';
@@ -8,6 +8,7 @@ interface POSProps {
   products: Product[];
   user: User | null;
   onCheckoutComplete: () => void;
+  onCartChange?: (hasItems: boolean) => void;
 }
 
 interface CartItem {
@@ -48,8 +49,10 @@ const generatePixPayload = (key: string, name: string, city: string, amount: str
   return payload + crc.toString(16).toUpperCase().padStart(4, '0');
 };
 
-export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) => {
+export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, onCartChange }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [lastSale, setLastSale] = useState<CartItem[]>([]);
+  const [isReprinting, setIsReprinting] = useState(false);
   const [barcode, setBarcode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -63,6 +66,23 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listEndRef = useRef<HTMLTableRowElement>(null);
+
+  // Notifica o componente pai sobre itens no carrinho e protege contra fechamento da aba
+  useEffect(() => {
+    if (onCartChange) {
+      onCartChange(cart.length > 0);
+    }
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (cart.length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [cart, onCartChange]);
 
   // 1. Foco Permanente: Foca ao montar e sempre que o carrinho mudar
   useEffect(() => {
@@ -139,6 +159,18 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         }
       }
 
+      // F11: Alternar Tela Cheia
+      if (e.key === 'F11') {
+        e.preventDefault();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      }
+
       // ESC: Cancelar / Limpar Carrinho (se não estiver no modal)
       if (e.key === 'Escape' && !showPaymentModal) {
         if (cart.length > 0 && confirm('Deseja cancelar a venda atual e limpar a tela?')) {
@@ -192,6 +224,34 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     }
   };
 
+  // Função para tocar som de erro
+  const playErrorSound = () => {
+    try {
+      // Cria o contexto de áudio (funciona na maioria dos navegadores modernos)
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sawtooth'; // Som mais "áspero" para erro
+        osc.frequency.value = 200; // Frequência grave
+        gain.gain.value = 0.1; // Volume
+        
+        osc.start();
+        setTimeout(() => {
+          osc.stop();
+          ctx.close();
+        }, 300); // Duração um pouco maior que o bip normal
+      }
+    } catch (e) {
+      console.error("Erro ao tocar som de erro", e);
+    }
+  };
+
   // 2. Lógica de Adicionar ao Carrinho (Scanner ou Manual)
   const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -213,6 +273,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         // setSuggestions([]) será limpo pelo useEffect quando barcode for vazio
         setErrorMsg('');
       } else {
+        playErrorSound();
         setErrorMsg(`Produto não encontrado: ${barcode}`);
         setBarcode(''); // Limpa para o próximo scan
       }
@@ -309,6 +370,17 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     return Math.max(0, subtotal - discountValue);
   };
 
+  const calculateTotalForItems = (items: CartItem[]) => {
+    const subtotal = items.reduce((acc, item) => {
+      let itemPrice = item.unitPrice;
+      if (item.discountValue > 0) {
+        itemPrice = item.discountType === 'percentage' ? itemPrice * (1 - item.discountValue / 100) : Math.max(0, itemPrice - item.discountValue);
+      }
+      return acc + (itemPrice * item.quantity);
+    }, 0);
+    return subtotal; // Simplificado para reimpressão (sem desconto global salvo por enquanto, ou assumindo aplicado nos itens)
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
@@ -348,19 +420,25 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
           paymentMethod,
           clientName,
           status: transactionStatus,
-          amountPaid: transactionStatus === 'PENDING' ? (parseFloat(amountReceived) || 0) : undefined
+          amountPaid: transactionStatus === 'PENDING' ? (parseFloat(amountReceived.replace(',', '.')) || 0) : undefined
         })
       });
 
       if (res.ok) {
-        alert('Venda realizada com sucesso!');
-        setCart([]);
         setShowPaymentModal(false);
-        setClientName('');
-        setAmountReceived('');
-        setDiscountPercentage('');
-        setTransactionStatus('PAID');
-        onCheckoutComplete();
+        
+        setLastSale([...cart]); // Salva para reimpressão
+        setTimeout(() => {
+          if (window.confirm('Venda realizada com sucesso! Deseja imprimir o comprovante?')) {
+            window.print();
+          }
+          setCart([]);
+          setClientName('');
+          setAmountReceived('');
+          setDiscountPercentage('');
+          setTransactionStatus('PAID');
+          onCheckoutComplete();
+        }, 500);
       } else {
         const data = await res.json();
         alert(`Erro: ${data.error}`);
@@ -391,12 +469,25 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     }
   };
 
+  const handleReprint = () => {
+    if (lastSale.length === 0) {
+      alert("Nenhuma venda recente para reimprimir.");
+      return;
+    }
+    setIsReprinting(true);
+    setTimeout(() => {
+      window.print();
+      setIsReprinting(false);
+    }, 500);
+  };
+
   return (
     <>
       {/* Layout de Impressão Térmica (80mm) - Visível apenas na impressão */}
       <div className="hidden print:block bg-white text-black p-0 m-0 font-mono text-xs w-[80mm]">
         <div className="text-center mb-2">
-          <h2 className="font-bold text-sm uppercase">{user?.establishment_name || 'Minha Loja'}</h2>
+          {(user as any)?.logo_url && <img src={(user as any).logo_url} alt="Logo" className="h-12 mx-auto mb-1 object-contain grayscale" />}
+          <h2 className="font-bold text-base uppercase">{user?.establishment_name || 'Minha Loja'}</h2>
           <p className="text-[10px]">{new Date().toLocaleString('pt-BR')}</p>
           <p className="text-[10px]">*** CUPOM NÃO FISCAL ***</p>
         </div>
@@ -413,7 +504,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
             </tr>
           </thead>
           <tbody>
-            {cart.map((item) => {
+            {(isReprinting ? lastSale : cart).map((item) => {
               let itemPrice = item.unitPrice;
               if (item.discountValue > 0) {
                 if (item.discountType === 'percentage') {
@@ -440,17 +531,22 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         
         <div className="flex justify-between font-bold text-sm mb-4">
           <span>TOTAL A PAGAR</span>
-          <span>{formatBRL(calculateTotal())}</span>
+          <span>{formatBRL(isReprinting ? calculateTotalForItems(lastSale) : calculateTotal())}</span>
         </div>
         
         <div className="text-center text-[10px]">
           <p>Obrigado pela preferência!</p>
+          <p className="font-bold uppercase mt-1">{user?.establishment_name || 'Minha Loja'}</p>
           <p>Volte sempre.</p>
         </div>
       </div>
 
       {/* Interface do PDV - Oculta na impressão */}
-      <div className="print:hidden flex flex-col lg:flex-row h-[calc(100vh-12rem)] md:h-[calc(100vh-12rem)] lg:h-[calc(100vh-12rem)] bg-[#121214] text-gray-100 rounded-xl overflow-hidden font-sans shadow-2xl border border-zinc-800">
+      <div className={`print:hidden flex flex-col lg:flex-row bg-[#121214] text-gray-100 font-sans shadow-2xl border border-zinc-800 overflow-hidden transition-all duration-300 ${
+        isFullscreen 
+          ? 'fixed inset-0 z-50 h-screen w-screen rounded-none border-0 m-0' 
+          : 'h-[calc(100vh-7rem)] md:h-[calc(100vh-9rem)] rounded-xl relative'
+      }`}>
       <style>{`
         @media print { @page { margin: 0; size: auto; } body { margin: 0; padding: 0; } }
         .custom-scrollbar::-webkit-scrollbar {
@@ -470,10 +566,10 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
       `}</style>
       
       {/* COLUNA ESQUERDA: Operação (Input + Lista) */}
-      <div className="flex-1 flex flex-col border-r border-zinc-800 relative min-h-0">
+      <div className="flex-1 flex flex-col border-r border-gray-200 dark:border-zinc-800 relative min-h-0">
         
         {/* Topo: Input de Busca */}
-        <div className="p-4 lg:p-6 bg-[#1A1A1E] border-b border-zinc-800 z-20 shadow-md">
+        <div className="p-4 lg:p-6 bg-white dark:bg-[#1A1A1E] border-b border-gray-200 dark:border-zinc-800 z-20 shadow-md">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2 text-zinc-400">
               <Monitor size={18} />
@@ -503,9 +599,16 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               onKeyDown={handleScan}
+              onBlur={(e) => {
+                // Mantém o foco no input se o usuário clicar no "vazio" ou perder o foco acidentalmente
+                if (!showPaymentModal && (!e.relatedTarget || e.relatedTarget === document.body)) {
+                  setTimeout(() => inputRef.current?.focus(), 10);
+                }
+              }}
               placeholder="Bipe o código ou digite o nome..."
-              className="w-full pl-14 pr-4 py-3 lg:py-5 text-lg lg:text-2xl font-bold bg-[#202024] border-2 border-zinc-700 rounded-xl focus:border-[#0055FF] focus:ring-4 focus:ring-[#0055FF]/20 outline-none text-white placeholder-zinc-600 transition-all shadow-inner"
+              className="w-full pl-14 pr-4 py-4 lg:py-6 text-2xl lg:text-4xl font-bold bg-gray-100 dark:bg-[#202024] border-2 border-gray-300 dark:border-zinc-700 rounded-xl focus:border-[#0055FF] focus:ring-4 focus:ring-[#0055FF]/20 outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-600 transition-all shadow-inner"
               autoComplete="off"
+              autoFocus
             />
             {/* Sugestões */}
             <AnimatePresence>
@@ -514,17 +617,17 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 right-0 bg-[#202024] shadow-2xl rounded-xl border border-zinc-700 mt-2 overflow-hidden z-30"
+                  className="absolute top-full left-0 right-0 bg-white dark:bg-[#202024] shadow-2xl rounded-xl border border-gray-200 dark:border-zinc-700 mt-2 overflow-hidden z-30"
                 >
                   {suggestions.map((product, index) => (
                     <button
                       key={product.id}
                       onClick={() => selectSuggestion(product)}
-                      className={`w-full text-left p-4 border-b border-zinc-800 last:border-0 flex justify-between items-center group transition-colors ${index === 0 ? 'bg-[#0055FF]/10' : 'hover:bg-zinc-800'}`}
+                      className={`w-full text-left p-4 border-b border-gray-100 dark:border-zinc-800 last:border-0 flex justify-between items-center group transition-colors ${index === 0 ? 'bg-[#0055FF]/10' : 'hover:bg-gray-50 dark:hover:bg-zinc-800'}`}
                     >
                       <div>
-                        <p className="font-bold text-white">{product.name}</p>
-                        <p className="text-xs text-zinc-400 font-mono">{product.sku}</p>
+                        <p className="font-bold text-gray-900 dark:text-white text-xl">{product.name}</p>
+                        <p className="text-sm text-zinc-400 font-mono">{product.sku}</p>
                       </div>
                     </button>
                   ))}
@@ -541,20 +644,20 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         </div>
 
         {/* Centro: Tabela de Itens */}
-        <div className="flex-1 overflow-auto bg-[#121214] relative custom-scrollbar scroll-smooth">
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-[#121214] relative custom-scrollbar scroll-smooth">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-[#121214] z-10 shadow-sm border-b border-zinc-800">
-              <tr className="text-xs uppercase text-zinc-500 font-bold">
-                <th className="px-3 py-3 lg:px-6 lg:py-4 w-10 lg:w-16">#</th>
-                <th className="px-3 py-3 lg:px-6 lg:py-4">Produto</th>
-                <th className="px-3 py-3 lg:px-6 lg:py-4 text-center w-16 lg:w-32">Qtd</th>
-                <th className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right w-24 lg:w-32">Unitário</th>
-                <th className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right w-32">Desconto</th>
-                <th className="px-3 py-3 lg:px-6 lg:py-4 text-right w-20 lg:w-32">Total</th>
-                <th className="px-3 py-3 lg:px-6 lg:py-4 text-center w-10 lg:w-16"></th>
+            <thead className="sticky top-0 bg-gray-100 dark:bg-[#121214] z-10 shadow-sm border-b border-gray-200 dark:border-zinc-800">
+              <tr className="text-base uppercase text-zinc-500 font-bold">
+                <th className="px-4 py-4 w-16">#</th>
+                <th className="px-4 py-4">Produto</th>
+                <th className="px-4 py-4 text-center w-32">Qtd</th>
+                <th className="hidden sm:table-cell px-4 py-4 text-right w-32">Unitário</th>
+                <th className="hidden sm:table-cell px-4 py-4 text-right w-32">Desconto</th>
+                <th className="px-4 py-4 text-right w-32">Total</th>
+                <th className="px-4 py-4 text-center w-16"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/50">
+            <tbody className="divide-y divide-gray-200 dark:divide-zinc-800/50">
               {cart.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-32">
@@ -581,32 +684,32 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                     <tr 
                       key={item.product.id} 
                       ref={isLast ? listEndRef : null} 
-                      className={`group transition-colors ${isLast ? 'bg-[#0055FF]/10' : 'hover:bg-zinc-800/30'}`}
+                      className={`group transition-colors ${isLast ? 'bg-[#0055FF]/10' : 'hover:bg-gray-100 dark:hover:bg-zinc-800/30'}`}
                     >
-                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-zinc-600 font-mono text-xs">{index + 1}</td>
-                      <td className="px-3 py-3 lg:px-6 lg:py-4">
-                        <p className="font-bold text-gray-200 text-sm lg:text-lg line-clamp-2">{item.product.name}</p>
-                        <p className="text-xs text-zinc-500 font-mono">{item.product.sku}</p>
+                      <td className="px-4 py-4 text-zinc-500 font-mono text-base">{index + 1}</td>
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-gray-800 dark:text-gray-200 text-xl lg:text-2xl line-clamp-2">{item.product.name}</p>
+                        <p className="text-base text-zinc-500 font-mono">{item.product.sku}</p>
                       </td>
-                      <td className="px-3 py-3 lg:px-6 lg:py-4">
-                        <div className="flex items-center justify-center gap-3 bg-zinc-900 rounded-lg p-1 border border-zinc-800">
-                          <button onClick={() => updateQuantity(item.product.id, -1)} className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"><Minus size={14}/></button>
-                          <span className="font-bold w-8 text-center text-white">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.product.id, 1)} className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"><Plus size={14}/></button>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-3 bg-white dark:bg-zinc-900 rounded-lg p-1 border border-gray-200 dark:border-zinc-800">
+                          <button onClick={() => updateQuantity(item.product.id, -1)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded text-zinc-400 hover:text-black dark:hover:text-white"><Minus size={16}/></button>
+                          <span className="font-bold w-8 text-center text-gray-900 dark:text-white text-xl">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.product.id, 1)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded text-zinc-400 hover:text-black dark:hover:text-white"><Plus size={16}/></button>
                         </div>
                       </td>
-                      <td className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right">
+                      <td className="hidden sm:table-cell px-4 py-4 text-right">
                       <input 
                         type="number" 
                         step="0.01"
                         min="0"
                         value={unitPrice}
                         onChange={(e) => updateUnitPrice(item.product.id, parseFloat(e.target.value) || 0)}
-                          className="w-24 text-right bg-transparent border-b border-zinc-700 focus:border-[#0055FF] outline-none p-1 text-zinc-300 focus:text-white transition-colors"
+                          className="w-24 text-right bg-transparent border-b border-gray-300 dark:border-zinc-700 focus:border-[#0055FF] outline-none p-1 text-gray-800 dark:text-zinc-300 focus:text-black dark:focus:text-white transition-colors text-xl"
                         onClick={(e) => e.stopPropagation()}
                       />
                     </td>
-                      <td className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right">
+                      <td className="hidden sm:table-cell px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <input 
                             type="number"
@@ -614,18 +717,18 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                             step={item.discountType === 'percentage' ? '1' : '0.01'}
                             value={item.discountValue}
                             onChange={(e) => updateDiscount(item.product.id, parseFloat(e.target.value) || 0)}
-                            className="w-16 text-right bg-transparent border-b border-zinc-700 focus:border-[#0055FF] outline-none p-1 text-zinc-300 focus:text-white transition-colors text-xs"
+                            className="w-16 text-right bg-transparent border-b border-gray-300 dark:border-zinc-700 focus:border-[#0055FF] outline-none p-1 text-gray-800 dark:text-zinc-300 focus:text-black dark:focus:text-white transition-colors text-sm"
                           />
                           <button
                             onClick={() => updateDiscount(item.product.id, item.discountValue, item.discountType === 'percentage' ? 'money' : 'percentage')}
-                            className="text-[10px] font-bold uppercase text-zinc-500 hover:text-white bg-zinc-800 px-1.5 py-1 rounded w-8"
+                            className="text-xs font-bold uppercase text-zinc-500 hover:text-black dark:hover:text-white bg-gray-200 dark:bg-zinc-800 px-2 py-1 rounded w-8"
                           >
                             {item.discountType === 'percentage' ? '%' : 'R$'}
                           </button>
                         </div>
                       </td>
-                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-right font-bold text-white text-sm lg:text-lg">{formatBRL(finalPrice * item.quantity)}</td>
-                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-center">
+                      <td className="px-4 py-4 text-right font-bold text-gray-900 dark:text-white text-xl lg:text-2xl">{formatBRL(finalPrice * item.quantity)}</td>
+                      <td className="px-4 py-4 text-center">
                         <button onClick={() => removeFromCart(item.product.id)} className="text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-colors lg:opacity-0 lg:group-hover:opacity-100"><Trash2 size={18} /></button>
                       </td>
                     </tr>
@@ -637,34 +740,37 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         </div>
 
         {/* Rodapé de Atalhos */}
-        <div className="bg-[#1A1A1E] border-t border-zinc-800 p-3 hidden lg:flex justify-center gap-4 text-xs font-mono text-zinc-500 select-none">
-          <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800">
-            <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">F2</span> Buscar
+        <div className="bg-white dark:bg-[#1A1A1E] border-t border-gray-200 dark:border-zinc-800 p-3 hidden lg:flex justify-center gap-4 text-sm font-mono text-zinc-500 select-none">
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800">
+            <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded">F2</span> Buscar
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800 cursor-pointer hover:bg-zinc-800 transition-colors" onClick={() => window.print()}>
-            <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">F4</span> Imprimir
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors" onClick={() => window.print()}>
+            <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded">F4</span> Imprimir
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800">
-            <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">F10</span> Finalizar
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors" onClick={handleReprint}>
+            <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded"><RotateCcw size={12}/></span> Reimprimir
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800">
-            <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">ESC</span> Cancelar
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800">
+            <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded">F10</span> Finalizar
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800">
+            <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded">ESC</span> Cancelar
           </div>
         </div>
       </div>
 
       {/* COLUNA DIREITA: Resumo e Pagamento */}
-      <div className="w-full lg:w-96 bg-[#1A1A1E] flex flex-col border-t lg:border-t-0 lg:border-l border-zinc-800 shadow-2xl z-30 shrink-0">
+      <div className="w-full lg:w-96 bg-white dark:bg-[#1A1A1E] flex flex-col border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-zinc-800 shadow-2xl z-30 shrink-0">
         <div className="p-4 lg:p-8 flex-1 flex flex-col">
           <h2 className="text-zinc-400 uppercase text-xs font-bold tracking-widest mb-4 lg:mb-8 hidden lg:block">Resumo da Venda</h2>
           
           <div className="space-y-6 mb-auto hidden lg:block">
-            <div className="flex justify-between items-center p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
+            <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-zinc-900/50 rounded-xl border border-gray-200 dark:border-zinc-800">
               <span className="text-zinc-400 text-sm">Itens</span>
-              <span className="text-white font-bold text-xl">{cart.reduce((acc, item) => acc + item.quantity, 0)}</span>
+              <span className="text-gray-900 dark:text-white font-bold text-3xl">{cart.reduce((acc, item) => acc + item.quantity, 0)}</span>
             </div>
 
-            <div className="flex justify-between items-center p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
+            <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-zinc-900/50 rounded-xl border border-gray-200 dark:border-zinc-800">
               <span className="text-zinc-400 text-sm flex items-center gap-2"><Tag size={14}/> Desconto (%)</span>
               <div className="flex items-center gap-2">
                 <input 
@@ -672,7 +778,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                   value={discountPercentage} 
                   onChange={e => setDiscountPercentage(e.target.value)}
                   placeholder="0"
-                  className="w-20 bg-transparent text-right font-bold text-white outline-none border-b border-zinc-700 focus:border-[#0055FF]"
+                  className="w-20 bg-transparent text-right font-bold text-gray-900 dark:text-white outline-none border-b border-gray-300 dark:border-zinc-700 focus:border-[#0055FF] text-2xl"
                 />
                 <span className="text-zinc-500 text-lg">%</span>
               </div>
@@ -687,13 +793,13 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
           <div className="mt-0 lg:mt-8 space-y-2 lg:space-y-4">
             <div className="flex justify-between items-end lg:block lg:text-right">
               <p className="text-zinc-500 text-sm font-medium mb-1">Total a Pagar</p>
-              <p className="text-3xl lg:text-5xl font-black text-white tracking-tight">{formatBRL(calculateTotal())}</p>
+              <p className="text-5xl lg:text-7xl font-black text-gray-900 dark:text-white tracking-tight">{formatBRL(calculateTotal())}</p>
             </div>
 
             <button
               onClick={() => setShowPaymentModal(true)}
               disabled={cart.length === 0}
-              className="w-full py-4 lg:py-5 bg-[#0055FF] hover:bg-[#0044CC] text-white rounded-xl font-bold text-lg lg:text-xl transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-3 mt-2 lg:mt-8"
+              className="w-full py-4 lg:py-5 bg-[#0055FF] hover:bg-[#0044CC] text-white rounded-xl font-bold text-xl lg:text-2xl transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-3 mt-2 lg:mt-8"
             >
               <CheckCircle2 size={24} /> 
               Finalizar Venda
@@ -705,7 +811,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
       {/* Modal de Pagamento */}
       <AnimatePresence>
         {showPaymentModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
