@@ -167,7 +167,11 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
                 <td className="px-6 py-4 text-right">
                   {!isColaborador && (
                     <button 
-                      onClick={() => onDeleteProduct(p)}
+                      onClick={() => {
+                        if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+                          onDeleteProduct(p);
+                        }
+                      }}
                       className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
                       title="Excluir Produto"
                     >
@@ -198,7 +202,11 @@ export const Inventory: React.FC<InventoryProps> = ({ products, user, onUpdateSa
                 )}
                 {!isColaborador && (
                   <button 
-                    onClick={() => onDeleteProduct(p)}
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+                        onDeleteProduct(p);
+                      }
+                    }}
                     className="p-1 text-gray-400 hover:text-rose-600"
                   >
                     <Trash2 size={16} />

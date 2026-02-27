@@ -120,15 +120,6 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ receivables, stats, onMa
               </select>
             </div>
           </div>
-          
-          <button 
-            type="button"
-            onClick={onNewSale}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-lg shadow-black/5"
-          >
-            <Plus size={18} />
-            Nova Venda
-          </button>
         </div>
 
         <div className="overflow-x-auto hidden md:block">

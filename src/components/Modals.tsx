@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, User } from '../types';
-import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X, Search, FileText } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, ScanBarcode, Camera, X, Search, FileText, Wand2, Tag, Plus } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { PeriodClosingReport } from './PeriodClosingReport';
+import { useProductLookup } from '../../useProductLookup';
 
 interface ModalsProps {
   showAddProduct: boolean;
@@ -13,7 +14,7 @@ interface ModalsProps {
   showReportModal: boolean;
   setShowReportModal: (show: boolean) => void;
   products: Product[];
-  onAddProduct: (data: { name: string, sku: string, min_stock: number }) => Promise<void> | void;
+  onAddProduct: (data: { name: string, sku: string, min_stock: number, brand?: string }) => Promise<void> | void;
   onTransaction: (e: React.FormEvent<HTMLFormElement>) => Promise<void> | void;
   user: User | null;
 }
@@ -34,10 +35,12 @@ export const Modals: React.FC<ModalsProps> = ({
   const [skuError, setSkuError] = useState('');
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
+  const [brand, setBrand] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState('PAID');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
   const [suggestedSalePrice, setSuggestedSalePrice] = useState('');
   const [exitSalePrice, setExitSalePrice] = useState('');
   const [searchSku, setSearchSku] = useState('');
@@ -46,6 +49,10 @@ export const Modals: React.FC<ModalsProps> = ({
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const lastScanTimeRef = useRef<number>(0);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+  const minStockInputRef = useRef<HTMLInputElement>(null);
+  const scannerInputRef = useRef<HTMLInputElement>(null);
+  const { lookupProduct, loading: lookupLoading } = useProductLookup();
+  const [itemsAddedCount, setItemsAddedCount] = useState(0);
 
   useEffect(() => {
     if (!showAddProduct) {
@@ -53,8 +60,20 @@ export const Modals: React.FC<ModalsProps> = ({
       setSkuError('');
       setName('');
       setNameError('');
+      setBrand('');
     } else if (prefilledSku) {
       setSku(prefilledSku);
+      
+      // Busca automática ao abrir modal com SKU preenchido (via Câmera)
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
+      lookupProduct(prefilledSku, token).then(data => {
+        if (data) {
+          setName(data.name);
+          setBrand(data.brand || '');
+          setTimeout(() => minStockInputRef.current?.focus(), 100);
+        }
+      });
+
       setPrefilledSku('');
     }
   }, [showAddProduct, prefilledSku]);
@@ -62,10 +81,12 @@ export const Modals: React.FC<ModalsProps> = ({
   useEffect(() => {
     if (showTransaction) {
       setTransactionStatus('PAID');
+      setItemsAddedCount(0);
       setSelectedProductId(showTransaction.productId ? showTransaction.productId.toString() : '');
       setSearchSku('');
       setSearchTerm('');
       setIsScanning(false);
+      setIsCreatingProduct(false);
       // Limpar preços ao abrir modal
       setSuggestedSalePrice('');
       setExitSalePrice('');
@@ -78,6 +99,11 @@ export const Modals: React.FC<ModalsProps> = ({
           }
         }
       }
+
+      // Garante o foco no campo de scanner ao abrir a janela
+      setTimeout(() => {
+        scannerInputRef.current?.focus();
+      }, 100);
     }
   }, [showTransaction]);
 
@@ -154,11 +180,20 @@ export const Modals: React.FC<ModalsProps> = ({
       setSearchTerm('');
     } else {
       if (showTransaction?.type === 'ENTRY') {
-        if (window.confirm(`Produto com SKU "${skuCode}" não encontrado. Deseja cadastrá-lo agora?`)) {
-          setPrefilledSku(skuCode);
-          setShowTransaction(null);
-          setShowAddProduct(true);
-        }
+        // Modo Unificado: Ativa criação de produto inline
+        setIsCreatingProduct(true);
+        setSku(skuCode);
+        setSearchSku(skuCode);
+        setSelectedProductId(''); // Limpa seleção para indicar novo
+        
+        // Tenta buscar dados online para o novo SKU
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
+        lookupProduct(skuCode, token).then(data => {
+          if (data) {
+            setName(data.name);
+            setBrand(data.brand || '');
+          }
+        });
       } else {
         alert(`Produto com SKU "${skuCode}" não encontrado no estoque.`);
       }
@@ -174,6 +209,7 @@ export const Modals: React.FC<ModalsProps> = ({
     const product = products.find(p => p.sku.toLowerCase() === val.toLowerCase());
     if (product) {
       setSelectedProductId(product.id.toString());
+      setIsCreatingProduct(false);
     }
   };
 
@@ -184,6 +220,7 @@ export const Modals: React.FC<ModalsProps> = ({
     else {
       const p = products.find(prod => prod.id.toString() === val);
       if (p) setSearchSku(p.sku);
+      setIsCreatingProduct(false);
       // Preencher preços ao selecionar manualmente
       if (p && showTransaction?.type === 'ENTRY') {
         setSuggestedSalePrice(p.sale_price > 0 ? p.sale_price.toString() : '');
@@ -208,6 +245,40 @@ export const Modals: React.FC<ModalsProps> = ({
     setNameError(exists ? 'Este nome de produto já existe.' : '');
   };
 
+  const generateRandomId = () => {
+    const randomId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    setSku(randomId);
+    setSkuError('');
+  };
+
+  const handleSkuBlur = async () => {
+    if (sku.length > 5) {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
+      const data = await lookupProduct(sku, token);
+      if (data) {
+        setName(data.name);
+        setBrand(data.brand || '');
+        setTimeout(() => minStockInputRef.current?.focus(), 100);
+      }
+    }
+  };
+
+  const handleSkuKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Evita que o formulário seja enviado vazio
+      const currentSku = e.currentTarget.value; // Pega o valor atual direto do evento (mais seguro para scanners rápidos)
+      if (currentSku.length > 5) {
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
+        const data = await lookupProduct(currentSku, token);
+        if (data) {
+          setName(data.name);
+          setBrand(data.brand || '');
+          setTimeout(() => minStockInputRef.current?.focus(), 100);
+        }
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -218,6 +289,7 @@ export const Modals: React.FC<ModalsProps> = ({
         name: formData.get('name') as string,
         sku: formData.get('sku') as string,
         min_stock: Number(formData.get('min_stock')),
+        brand: formData.get('brand') as string,
       });
     } finally {
       setIsSubmitting(false);
@@ -227,9 +299,80 @@ export const Modals: React.FC<ModalsProps> = ({
   const handleTransactionSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (isSubmitting) return;
+
+    const form = e.currentTarget; // Captura a referência do formulário antes do await
     setIsSubmitting(true);
+    
+    let eventToPass = e; // Evento que será passado para onTransaction
+
     try {
-      await onTransaction(e);
+      // Lógica Unificada: Se estiver criando produto, cria antes da transação
+      if (isCreatingProduct && showTransaction?.type === 'ENTRY') {
+        if (!name || name.trim() === '') {
+          throw new Error('O nome do produto é obrigatório. Por favor, preencha o campo.');
+        }
+
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
+        const formData = new FormData(form); // Usa a referência capturada
+        
+        // 1. Criar Produto
+        const productRes = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            name: name,
+            sku: sku || searchSku,
+            min_stock: Number(formData.get('min_stock') || 5),
+            brand: brand
+          })
+        });
+
+        if (!productRes.ok) throw new Error('Erro ao criar produto');
+        const productData = await productRes.json();
+        
+        // 2. Injetar o ID do novo produto no formulário para a transação
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'product_id';
+        hiddenInput.value = productData.id;
+        form.appendChild(hiddenInput);
+
+        // Cria um evento sintético pois o original 'e' pode estar inválido após o await
+        eventToPass = {
+          ...e,
+          currentTarget: form,
+          target: form,
+          preventDefault: () => {},
+          stopPropagation: () => {}
+        } as unknown as React.FormEvent<HTMLFormElement>;
+      }
+
+      await onTransaction(eventToPass);
+      alert("Transação realizada com sucesso!");
+      
+      if (showTransaction?.type === 'ENTRY') {
+        setItemsAddedCount(prev => prev + 1);
+        form.reset();
+        setSku('');
+        setSkuError('');
+        setName('');
+        setNameError('');
+        setBrand('');
+        setSelectedProductId('');
+        setSearchSku('');
+        setSearchTerm('');
+        setIsCreatingProduct(false);
+        setSuggestedSalePrice('');
+        setExitSalePrice('');
+        setTimeout(() => scannerInputRef.current?.focus(), 100);
+      } else {
+        setShowTransaction(null);
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Erro ao realizar transação.");
     } finally {
       setIsSubmitting(false);
     }
@@ -255,6 +398,39 @@ export const Modals: React.FC<ModalsProps> = ({
             <h3 className="text-xl font-bold mb-6 dark:text-white">Cadastrar Novo Produto</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
+                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">ID / Código</label>
+                <div className="relative flex gap-2">
+                  <div className="relative flex-1">
+                    <input 
+                      name="sku" 
+                      data-testid="input-product-sku" 
+                      required 
+                      value={sku} 
+                      onChange={handleSkuChange} 
+                      onBlur={handleSkuBlur}
+                      onKeyDown={handleSkuKeyDown}
+                      autoFocus
+                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none dark:text-white ${skuError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} 
+                      placeholder="Escaneie ou digite..." 
+                    />
+                    {lookupLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 w-5 h-5 animate-spin" />}
+                    {!lookupLoading && sku && !skuError && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />}
+                  </div>
+                  <button type="button" onClick={handleSkuBlur} className="px-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors" title="Buscar dados na Web">
+                    <Search size={20} />
+                  </button>
+                  <button type="button" onClick={generateRandomId} className="px-3 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-xl hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors" title="Gerar ID Automático">
+                    <Wand2 size={20} />
+                  </button>
+                </div>
+                {skuError && (
+                  <div className="flex items-center gap-1 mt-1 text-rose-500 text-xs font-bold">
+                    <AlertCircle size={12} />
+                    <span>{skuError}</span>
+                  </div>
+                )}
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Nome do Produto</label>
                 <div className="relative">
                   <input name="name" data-testid="input-product-name" required value={name} onChange={handleNameChange} className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none dark:text-white ${nameError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} placeholder="Ex: Monitor Dell 24" />
@@ -268,21 +444,15 @@ export const Modals: React.FC<ModalsProps> = ({
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">ID / Código</label>
+                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Marca (Opcional)</label>
                 <div className="relative">
-                  <input name="sku" data-testid="input-product-sku" required value={sku} onChange={handleSkuChange} className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 outline-none dark:text-white ${skuError ? 'focus:ring-rose-500/50' : 'focus:ring-black/5 dark:focus:ring-white/5'}`} placeholder="Ex: MON-DELL-001" />
-                  {sku && !skuError && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />}
+                  <input name="brand" value={brand} onChange={e => setBrand(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" placeholder="Ex: Dell, Samsung..." />
+                  {brand && <Tag className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />}
                 </div>
-                {skuError && (
-                  <div className="flex items-center gap-1 mt-1 text-rose-500 text-xs font-bold">
-                    <AlertCircle size={12} />
-                    <span>{skuError}</span>
-                  </div>
-                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Estoque Mínimo (Alerta)</label>
-                <input name="min_stock" data-testid="input-product-min-stock" type="number" inputMode="numeric" defaultValue={5} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
+                <input ref={minStockInputRef} name="min_stock" data-testid="input-product-min-stock" type="number" inputMode="numeric" defaultValue={5} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white" />
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" data-testid="btn-cancel-product" onClick={() => setShowAddProduct(false)} className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
@@ -303,9 +473,16 @@ export const Modals: React.FC<ModalsProps> = ({
             exit={{ opacity: 0, y: 100 }}
             className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-t-[2.5rem] md:rounded-3xl p-8 shadow-2xl transition-colors"
           >
-            <h3 className="text-xl font-bold mb-6 dark:text-white">
-              Registrar {showTransaction.type === 'ENTRY' ? 'Entrada' : 'Saída'}
-            </h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold dark:text-white">
+                {isCreatingProduct ? 'Cadastrar e Dar Entrada' : `Registrar ${showTransaction.type === 'ENTRY' ? 'Entrada' : 'Saída'}`}
+              </h3>
+              {showTransaction.type === 'ENTRY' && itemsAddedCount > 0 && (
+                <span className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold px-3 py-1 rounded-full animate-in fade-in zoom-in">
+                  {itemsAddedCount} item{itemsAddedCount !== 1 ? 's' : ''} add.
+                </span>
+              )}
+            </div>
             <form onSubmit={handleTransactionSubmit} className="space-y-4">
               
               {/* Área de Scanner */}
@@ -329,6 +506,7 @@ export const Modals: React.FC<ModalsProps> = ({
                 ) : (
                   <div className="flex gap-2">
                     <input 
+                      ref={scannerInputRef}
                       type="text" 
                       value={searchSku}
                       onChange={handleSkuSearchChange}
@@ -348,43 +526,100 @@ export const Modals: React.FC<ModalsProps> = ({
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Buscar Produto</label>
-                <div className="relative mb-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input
-                    type="text" 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && filteredProducts.length > 0) {
-                        e.preventDefault(); // Evita enviar o formulário
-                        const firstProduct = filteredProducts[0];
-                        setSelectedProductId(firstProduct.id.toString());
-                        setSearchSku(firstProduct.sku);
-                        setSearchTerm(''); // Limpa a busca após selecionar
-                        setTimeout(() => {
-                          quantityInputRef.current?.focus();
-                        }, 10);
-                      }
-                    }}
-                    placeholder="Digite o nome ou ID para filtrar..." 
-                    className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white text-sm"
-                    autoFocus
-                  />
+              {isCreatingProduct ? (
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-500/30 space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 mb-1">
+                    <AlertCircle size={16} />
+                    <span className="text-xs font-bold uppercase">Novo Produto Detectado</span>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">ID / Código</label>
+                    <input 
+                      name="sku" 
+                      value={sku} 
+                      onChange={e => setSku(e.target.value)} 
+                      className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 focus:ring-2 focus:ring-blue-500 outline-none dark:text-white text-sm font-mono" 
+                      placeholder="Código do produto"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Nome do Produto</label>
+                    <input 
+                      name="name" 
+                      value={name} 
+                      onChange={e => setName(e.target.value)} 
+                      className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 focus:ring-2 focus:ring-blue-500 outline-none dark:text-white text-sm" 
+                      placeholder="Nome do produto"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Marca</label>
+                      <input name="brand" value={brand} onChange={e => setBrand(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 outline-none dark:text-white text-sm" placeholder="Marca" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Estoque Mín.</label>
+                      <input name="min_stock" type="number" defaultValue={5} className="w-full px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-blue-200 dark:border-blue-500/30 outline-none dark:text-white text-sm" />
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Buscar Produto</label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="text" 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && filteredProducts.length > 0) {
+                          e.preventDefault(); // Evita enviar o formulário
+                          const firstProduct = filteredProducts[0];
+                          setSelectedProductId(firstProduct.id.toString());
+                          setSearchSku(firstProduct.sku);
+                          setSearchTerm(''); // Limpa a busca após selecionar
+                          setTimeout(() => {
+                            quantityInputRef.current?.focus();
+                          }, 10);
+                        } else if (showTransaction?.type === 'ENTRY' && searchTerm.trim()) {
+                          e.preventDefault();
+                          handleProductFound(searchTerm);
+                        }
+                      }}
+                      placeholder="Digite o nome ou ID para filtrar..." 
+                      className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none dark:text-white text-sm"
+                      autoFocus
+                    />
+                  </div>
 
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Produto</label>
-                <select name="product_id" data-testid="select-product" required value={selectedProductId} onChange={handleManualProductSelect} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
-                  <option value="">Selecione um produto...</option>
-                  {filteredProducts.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} (ID: {p.sku}) {showTransaction.type === 'EXIT' ? `- Est: ${p.current_stock}` : ''}</option>
-                  ))}
-                </select>
-                {searchTerm && filteredProducts.length === 0 && (
-                  <p className="text-xs text-rose-500 mt-1 ml-1">Nenhum produto encontrado com "{searchTerm}"</p>
-                )}
-              </div>
+                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Produto</label>
+                  <select name="product_id" data-testid="select-product" required={!isCreatingProduct} value={selectedProductId} onChange={handleManualProductSelect} className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-black/5 dark:focus:ring-white/5 outline-none appearance-none dark:text-white">
+                    <option value="">Selecione um produto...</option>
+                    {filteredProducts.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} (ID: {p.sku}) {showTransaction.type === 'EXIT' ? `- Est: ${p.current_stock}` : ''}</option>
+                    ))}
+                  </select>
+                  {searchTerm && filteredProducts.length === 0 && (
+                    <div className="mt-2 p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800">
+                      <p className="text-xs text-rose-500 dark:text-rose-400 mb-2 font-medium">Nenhum produto encontrado com "{searchTerm}"</p>
+                      {showTransaction?.type === 'ENTRY' && (
+                        <button 
+                          type="button"
+                          onClick={() => handleProductFound(searchTerm)}
+                          className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                        >
+                          <Plus size={14} />
+                          Cadastrar "{searchTerm}"
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Quantidade</label>

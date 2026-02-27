@@ -590,28 +590,10 @@ export default function App() {
               type="button"
               onClick={() => setShowTransaction({ type: 'ENTRY' })}
               data-testid="btn-entry"
-              className="flex items-center gap-2 bg-white dark:bg-[#1e293b] text-[#2D3436] dark:text-white px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 font-medium hover:border-[#4CAF50] hover:text-[#4CAF50] transition-all shadow-sm"
+              className="flex items-center gap-3 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <ArrowDownCircle size={18} />
+              <ArrowDownCircle size={24} />
               Entrada
-            </button>
-            <button 
-              type="button"
-              onClick={() => setShowTransaction({ type: 'EXIT' })}
-              data-testid="btn-exit"
-              className="flex items-center gap-2 bg-white dark:bg-[#1e293b] text-[#2D3436] dark:text-white px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 font-medium hover:border-rose-500 hover:text-rose-500 transition-all shadow-sm"
-            >
-              <ArrowUpCircle size={18} />
-              Saída
-            </button>
-            <button 
-              type="button"
-              onClick={() => setShowAddProduct(true)}
-              data-testid="btn-new-product"
-              className="flex items-center gap-2 bg-[#4CAF50] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#43A047] transition-all shadow-lg shadow-green-500/20"
-            >
-              <Plus size={18} />
-              Novo Produto
             </button>
         </div>
 

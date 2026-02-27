@@ -14,6 +14,8 @@ interface CartItem {
   product: Product;
   quantity: number;
   unitPrice: number;
+  discountType: 'percentage' | 'money';
+  discountValue: number;
 }
 
 export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) => {
@@ -162,7 +164,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         );
       }
       const defaultSalePrice = product.sale_price > 0 ? product.sale_price : product.average_cost * 1.5;
-      return [...prev, { product, quantity: 1, unitPrice: defaultSalePrice }];
+      return [...prev, { product, quantity: 1, unitPrice: defaultSalePrice, discountType: 'percentage', discountValue: 0 }];
     });
   };
 
@@ -200,10 +202,31 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     }));
   };
 
+  const updateDiscount = (productId: number, value: number, type?: 'percentage' | 'money') => {
+    setCart(prev => prev.map(item => {
+      if (item.product.id === productId) {
+        return { 
+          ...item, 
+          discountValue: value,
+          discountType: type !== undefined ? type : item.discountType
+        };
+      }
+      return item;
+    }));
+  };
+
   // Cálculos de Totais
   const calculateTotal = () => {
     const subtotal = cart.reduce((acc, item) => {
-      return acc + (item.unitPrice * item.quantity);
+      let itemPrice = item.unitPrice;
+      if (item.discountValue > 0) {
+        if (item.discountType === 'percentage') {
+          itemPrice = itemPrice * (1 - item.discountValue / 100);
+        } else {
+          itemPrice = Math.max(0, itemPrice - item.discountValue);
+        }
+      }
+      return acc + (itemPrice * item.quantity);
     }, 0);
     
     const discountValue = (subtotal * (parseFloat(discountPercentage) || 0)) / 100;
@@ -223,11 +246,19 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
 
     try {
       const itemsPayload = cart.map(item => {
-        const discountedUnitPrice = item.unitPrice * (1 - ((parseFloat(discountPercentage) || 0) / 100));
+        let netUnitPrice = item.unitPrice;
+        if (item.discountValue > 0) {
+          if (item.discountType === 'percentage') {
+            netUnitPrice = netUnitPrice * (1 - item.discountValue / 100);
+          } else {
+            netUnitPrice = Math.max(0, netUnitPrice - item.discountValue);
+          }
+        }
+        const finalUnitPrice = netUnitPrice * (1 - ((parseFloat(discountPercentage) || 0) / 100));
         return {
           product_id: item.product.id,
           quantity: item.quantity,
-          unit_price: discountedUnitPrice
+          unit_price: finalUnitPrice
         };
       });
 
@@ -340,6 +371,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                 <th className="px-3 py-3 lg:px-6 lg:py-4">Produto</th>
                 <th className="px-3 py-3 lg:px-6 lg:py-4 text-center w-16 lg:w-32">Qtd</th>
                 <th className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right w-24 lg:w-32">Unitário</th>
+                <th className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right w-32">Desconto</th>
                 <th className="px-3 py-3 lg:px-6 lg:py-4 text-right w-20 lg:w-32">Total</th>
                 <th className="px-3 py-3 lg:px-6 lg:py-4 text-center w-10 lg:w-16"></th>
               </tr>
@@ -359,6 +391,14 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                 cart.map((item, index) => {
                   const unitPrice = item.unitPrice;
                   const isLast = index === cart.length - 1;
+                  let finalPrice = unitPrice;
+                  if (item.discountValue > 0) {
+                    if (item.discountType === 'percentage') {
+                      finalPrice = unitPrice * (1 - item.discountValue / 100);
+                    } else {
+                      finalPrice = Math.max(0, unitPrice - item.discountValue);
+                    }
+                  }
                   return (
                     <tr 
                       key={item.product.id} 
@@ -388,7 +428,25 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                         onClick={(e) => e.stopPropagation()}
                       />
                     </td>
-                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-right font-bold text-white text-sm lg:text-lg">{formatBRL(unitPrice * item.quantity)}</td>
+                      <td className="hidden sm:table-cell px-3 py-3 lg:px-6 lg:py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <input 
+                            type="number"
+                            min="0"
+                            step={item.discountType === 'percentage' ? '1' : '0.01'}
+                            value={item.discountValue}
+                            onChange={(e) => updateDiscount(item.product.id, parseFloat(e.target.value) || 0)}
+                            className="w-16 text-right bg-transparent border-b border-zinc-700 focus:border-[#0055FF] outline-none p-1 text-zinc-300 focus:text-white transition-colors text-xs"
+                          />
+                          <button
+                            onClick={() => updateDiscount(item.product.id, item.discountValue, item.discountType === 'percentage' ? 'money' : 'percentage')}
+                            className="text-[10px] font-bold uppercase text-zinc-500 hover:text-white bg-zinc-800 px-1.5 py-1 rounded w-8"
+                          >
+                            {item.discountType === 'percentage' ? '%' : 'R$'}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 lg:px-6 lg:py-4 text-right font-bold text-white text-sm lg:text-lg">{formatBRL(finalPrice * item.quantity)}</td>
                       <td className="px-3 py-3 lg:px-6 lg:py-4 text-center">
                         <button onClick={() => removeFromCart(item.product.id)} className="text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-colors lg:opacity-0 lg:group-hover:opacity-100"><Trash2 size={18} /></button>
                       </td>

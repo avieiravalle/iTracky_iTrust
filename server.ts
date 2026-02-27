@@ -122,6 +122,9 @@ function runMigrations(database: Database.Database) {
     if (!productInfo.some(col => col.name === 'sale_price')) {
       database.exec("ALTER TABLE products ADD COLUMN sale_price REAL DEFAULT 0");
     }
+    if (!productInfo.some(col => col.name === 'brand')) {
+      database.exec("ALTER TABLE products ADD COLUMN brand TEXT");
+    }
     const transactionInfo = database.prepare("PRAGMA table_info(transactions)").all() as any[];
     if (!transactionInfo.some(col => col.name === 'payment_method')) {
       database.exec("ALTER TABLE transactions ADD COLUMN payment_method TEXT");
@@ -465,12 +468,50 @@ export async function createApp() {
     }
   });
 
+  // Rota de emergência para corrigir senha (ACESSE NO NAVEGADOR: http://localhost:3000/api/fix-login)
+  app.get("/api/fix-login", async (req, res) => {
+    try {
+      const email = "testegestor@gmail.com";
+      const password = "123";
+      const hash = await bcrypt.hash(password, 10);
+      
+      const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+      if (user) {
+        db.prepare("UPDATE users SET password = ?, status = 'active' WHERE email = ?").run(hash, email);
+        res.json({ success: true, message: `Senha de ${email} resetada para '123' e status definido como 'active'. Tente logar agora.` });
+      } else {
+        res.status(404).json({ error: `Usuário ${email} não encontrado no banco de dados.` });
+      }
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
-    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+    // Busca case-insensitive para evitar erros de digitação
+    const user = db.prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?)").get(email) as any;
 
-    const passwordMatch = user ? await bcrypt.compare(password, user.password) : false;
-    if (user && passwordMatch) {
+    if (!user) {
+      console.log(`[LOGIN FALHA] Usuário não encontrado: ${email}`);
+      return res.status(401).json({ error: "Credenciais inválidas" });
+    }
+
+    let passwordMatch = false;
+    
+    try {
+      passwordMatch = await bcrypt.compare(password, user.password);
+    } catch (e) {
+      passwordMatch = false;
+    }
+
+    // Fallback: Se falhar, verifica se é uma senha antiga em texto plano e atualiza
+    if (!passwordMatch && user.password === password) {
+      console.log(`[LOGIN] Atualizando senha antiga para hash seguro: ${email}`);
+      passwordMatch = true;
+      const newHash = await bcrypt.hash(password, 10);
+      db.prepare("UPDATE users SET password = ? WHERE id = ?").run(newHash, user.id);
+    }
+
+    if (passwordMatch) {
       if (user.status === 'pending') {
         return res.status(403).json({ error: "Cadastro em análise. Realize o pagamento PIX (Chave: 29556537805) e envie o comprovante no WhatsApp para liberar seu acesso." });
       }
@@ -487,6 +528,7 @@ export async function createApp() {
       logAudit(user.id, user.name, 'LOGIN', 'Usuário realizou login');
       res.json({ user: userWithoutPassword, token });
     } else {
+      console.log(`[LOGIN FALHA] Senha incorreta para: ${email}`);
       res.status(401).json({ error: "Credenciais inválidas" });
     }
   });
@@ -750,13 +792,40 @@ export async function createApp() {
     }
   });
 
+  // Rota para consultar dados de produto em API Externa (Open Food Facts)
+  app.get("/api/lookup-external/:ean", authenticateToken, async (req: AuthRequest, res) => {
+    const { ean } = req.params;
+    try {
+      // Consulta a API pública do Open Food Facts
+      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`, {
+        headers: {
+          'User-Agent': 'StockFlow - Inventory System - 1.0'
+        }
+      });
+      const data = await response.json() as any;
+
+      if (data.status === 1) {
+        res.json({
+          name: data.product.product_name || "",
+          image: data.product.image_url || "",
+          brand: data.product.brands || ""
+        });
+      } else {
+        res.status(404).json({ error: "Produto não encontrado na base global." });
+      }
+    } catch (error: any) {
+      console.error("Erro na consulta externa:", error);
+      res.status(500).json({ error: "Erro ao consultar API externa" });
+    }
+  });
+
   app.post("/api/products", authenticateToken, (req: AuthRequest, res) => {
-    const { name, sku, min_stock } = req.body;
+    const { name, sku, min_stock, brand } = req.body;
     try {
       const user = req.user;
       const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
 
-      const info = db.prepare("INSERT INTO products (user_id, name, sku, min_stock) VALUES (?, ?, ?, ?)").run(ownerId, name, sku, min_stock);
+      const info = db.prepare("INSERT INTO products (user_id, name, sku, min_stock, brand) VALUES (?, ?, ?, ?, ?)").run(ownerId, name, sku, min_stock, brand || null);
       logAudit(user.id, user.name, 'CRIACAO_PRODUTO', `Produto criado: ${name} (SKU: ${sku})`);
       res.json({ id: info.lastInsertRowid });
     } catch (error: any) {

@@ -295,35 +295,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className="text-[10px] opacity-60 uppercase tracking-tighter">Reposição</span>
                   </div>
                 </button>
-                <button 
-                  type="button"
-                  onClick={() => { onShowTransaction('EXIT'); setShowMobileMenu(false); }}
-                  className="flex flex-col items-center gap-3 p-6 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-3xl transition-all active:scale-95 border border-rose-100 dark:border-rose-500/20"
-                >
-                  <div className="w-12 h-12 bg-rose-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-500/20">
-                    <ArrowUpCircle size={28} />
-                  </div>
-                  <div className="text-center">
-                    <span className="block text-sm font-bold">Saída</span>
-                    <span className="text-[10px] opacity-60 uppercase tracking-tighter">Venda/Uso</span>
-                  </div>
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => { onShowAddProduct(); setShowMobileMenu(false); }}
-                  className={`flex items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 rounded-3xl transition-all active:scale-95 border border-gray-200 dark:border-zinc-700 ${user?.role === 'gestor' ? 'col-span-3' : 'col-span-2'}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center">
-                      <Plus size={24} />
-                    </div>
-                    <div className="text-left">
-                      <span className="block text-sm font-bold">Novo Produto</span>
-                      <span className="text-[10px] opacity-60 uppercase tracking-tighter">Cadastrar ID</span>
-                    </div>
-                  </div>
-                  <ArrowRight size={20} className="opacity-40" />
-                </button>
                 {(installPrompt || isIos) && (
                   <button 
                     type="button"
@@ -356,7 +327,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </AnimatePresence>
 
       {/* Bottom Navigation - Mobile Only */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border-t border-[#E5E7EB] dark:border-zinc-800 z-50 flex justify-around items-center px-2 py-3 md:hidden transition-colors safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border-t border-[#E5E7EB] dark:border-zinc-800 z-50 flex justify-around items-center px-2 py-3 md:hidden lg:hidden xl:hidden transition-colors safe-area-bottom">
         {appMode === 'full' && (
           <button 
             type="button"
