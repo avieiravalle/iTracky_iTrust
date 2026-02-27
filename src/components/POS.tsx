@@ -132,13 +132,37 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Ações de Atalho (Funções auxiliares para uso no teclado e clique)
+  const handleFocusSearch = () => {
+    inputRef.current?.focus();
+  };
+
+  const handleFinalizeSale = () => {
+    if (showPaymentModal) return;
+    if (cart.length > 0) {
+      setShowPaymentModal(true);
+    } else {
+      setErrorMsg('Adicione itens ao carrinho para finalizar a venda.');
+      setTimeout(() => setErrorMsg(''), 3000);
+    }
+  };
+
+  const handleCancelSale = () => {
+    if (cart.length > 0 && confirm('Deseja cancelar a venda atual e limpar a tela?')) {
+      setCart([]);
+      setDiscountPercentage('');
+      setClientName('');
+      setAmountReceived('');
+    }
+  };
+
   // Gestão de Atalhos de Teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // F2: Focar no Input de Busca
       if (e.key === 'F2') {
         e.preventDefault();
-        inputRef.current?.focus();
+        handleFocusSearch();
       }
 
       // F4: Imprimir Nota
@@ -150,13 +174,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
       // F10: Finalizar Venda
       if (e.key === 'F10') {
         e.preventDefault();
-        if (showPaymentModal) return;
-        if (cart.length > 0) {
-          setShowPaymentModal(true);
-        } else {
-          setErrorMsg('Adicione itens ao carrinho para finalizar a venda.');
-          setTimeout(() => setErrorMsg(''), 3000);
-        }
+        handleFinalizeSale();
       }
 
       // F11: Alternar Tela Cheia
@@ -172,10 +190,12 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
       }
 
       // ESC: Cancelar / Limpar Carrinho (se não estiver no modal)
-      if (e.key === 'Escape' && !showPaymentModal) {
-        if (cart.length > 0 && confirm('Deseja cancelar a venda atual e limpar a tela?')) {
-          setCart([]);          setDiscountPercentage('');
-          setClientName('');
+      if (e.key === 'Escape') {
+        if (showPaymentModal) {
+          setShowPaymentModal(false);
+          setAmountReceived('');
+        } else {
+          handleCancelSale();
         }
       }
     };
@@ -741,7 +761,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
 
         {/* Rodapé de Atalhos */}
         <div className="bg-white dark:bg-[#1A1A1E] border-t border-gray-200 dark:border-zinc-800 p-3 hidden lg:flex justify-center gap-4 text-sm font-mono text-zinc-500 select-none">
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800">
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors" onClick={handleFocusSearch}>
             <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded">F2</span> Buscar
           </div>
           <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors" onClick={() => window.print()}>
@@ -750,10 +770,10 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
           <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors" onClick={handleReprint}>
             <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded"><RotateCcw size={12}/></span> Reimprimir
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800">
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors" onClick={handleFinalizeSale}>
             <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded">F10</span> Finalizar
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800">
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-zinc-900 rounded border border-gray-200 dark:border-zinc-800 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors" onClick={handleCancelSale}>
             <span className="font-bold text-gray-700 dark:text-zinc-300 bg-gray-200 dark:bg-zinc-800 px-1.5 rounded">ESC</span> Cancelar
           </div>
         </div>
