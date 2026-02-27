@@ -585,17 +585,19 @@ export default function App() {
         </header>
 
         {/* Barra de Ações Rápidas (Reposicionada) */}
-        <div className="flex justify-end gap-3 mb-6">
-            <button 
-              type="button"
-              onClick={() => setShowTransaction({ type: 'ENTRY' })}
-              data-testid="btn-entry"
-              className="flex items-center gap-3 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <ArrowDownCircle size={24} />
-              Entrada
-            </button>
-        </div>
+        {activeTab !== 'pdv' && (
+          <div className="flex justify-end gap-3 mb-6">
+              <button 
+                type="button"
+                onClick={() => setShowTransaction({ type: 'ENTRY' })}
+                data-testid="btn-entry"
+                className="flex items-center gap-3 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <ArrowDownCircle size={24} />
+                Entrada
+              </button>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -650,11 +652,13 @@ export default function App() {
             {activeTab === 'admin' && <AdminDashboard />}
           </motion.div>
         </AnimatePresence>
-        <footer className="mt-12 text-center pt-6 border-t border-gray-200 dark:border-zinc-800">
-          <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
-            iTrust ERP – Gestão inteligente, confiança absoluta.
-          </p>
-        </footer>
+        {activeTab !== 'pdv' && (
+          <footer className="mt-12 text-center pt-6 border-t border-gray-200 dark:border-zinc-800">
+            <p className="text-xs text-[#2D3436]/70 dark:text-gray-500 font-medium">
+              iTrust ERP – Gestão inteligente, confiança absoluta.
+            </p>
+          </footer>
+        )}
       </main>
 
       <Modals 

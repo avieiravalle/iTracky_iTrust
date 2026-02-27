@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Upload, RefreshCw, Palette, Trash2, Sun, Moon, Monitor, Loader2 } from 'lucide-react';
+import { Save, Upload, RefreshCw, Palette, Trash2, Sun, Moon, Monitor, Loader2, QrCode } from 'lucide-react';
 import { User } from '../types';
 
 interface StoreSettingsProps {
@@ -23,6 +23,7 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
     return { primary: userColors?.primary || '#1A3A5F', secondary: userColors?.secondary || '#4CAF50', accent: userColors?.accent || '#00D4FF' };
   });
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>((user as any)?.theme_preference || 'system');
+  const [pixKey, setPixKey] = useState((user as any)?.pix_key || '');
   const [logoUrl, setLogoUrl] = useState((user as any)?.logo_url || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -35,6 +36,9 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
     // Atualiza o logo se o usuário for atualizado externamente
     if ((user as any)?.logo_url !== logoUrl) {
       setLogoUrl((user as any)?.logo_url || '');
+    }
+    if ((user as any)?.pix_key !== pixKey) {
+      setPixKey((user as any)?.pix_key || '');
     }
   }, [user]);
 
@@ -147,7 +151,8 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
         },
         body: JSON.stringify({
           custom_colors: colors,
-          theme_preference: themeMode
+          theme_preference: themeMode,
+          pix_key: pixKey
         })
       });
 
@@ -262,6 +267,27 @@ export function StoreSettings({ user, onUpdateUser }: StoreSettingsProps) {
                 Restaurar Cores Padrão
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Seção de Pagamento (PIX) */}
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+            <QrCode size={20} className="text-emerald-500" />
+            Recebimento via PIX
+          </h3>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Chave PIX da Loja</label>
+            <input 
+              type="text" 
+              value={pixKey} 
+              onChange={e => setPixKey(e.target.value)} 
+              placeholder="CPF, CNPJ, Email, Celular ou Chave Aleatória" 
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 outline-none dark:text-white"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Esta chave será usada para gerar o QR Code automaticamente na tela de vendas (PDV).
+            </p>
           </div>
         </div>
 

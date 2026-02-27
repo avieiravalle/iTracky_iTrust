@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, ScanBarcode, Delete, X, CreditCard, Banknote, QrCode, CheckCircle2, Keyboard, Monitor, Tag, Clock } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, ScanBarcode, Delete, X, CreditCard, Banknote, QrCode, CheckCircle2, Keyboard, Monitor, Tag, Clock, Copy, AlertCircle, Maximize, Minimize, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, User } from '../types';
 import { formatBRL } from '../utils/format';
@@ -18,6 +18,36 @@ interface CartItem {
   discountValue: number;
 }
 
+// Função auxiliar para gerar o payload do PIX (Copia do PixPaymentModal para evitar dependência circular)
+const generatePixPayload = (key: string, name: string, city: string, amount: string, txId: string = '***') => {
+  const formattedAmount = parseFloat(amount).toFixed(2);
+  if (isNaN(parseFloat(formattedAmount)) || parseFloat(formattedAmount) <= 0) return null;
+  
+  const format = (id: string, val: string) => id + val.length.toString().padStart(2, '0') + val;
+  
+  const payload = 
+    '000201' +
+    format('26', '0014BR.GOV.BCB.PIX' + format('01', key)) +
+    format('52', '0000') +
+    format('53', '986') +
+    format('54', formattedAmount) +
+    format('58', 'BR') +
+    format('59', name) +
+    format('60', city) +
+    format('62', format('05', txId)) +
+    '6304';
+
+  let crc = 0xFFFF;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+      else crc = (crc << 1) & 0xFFFF;
+    }
+  }
+  return payload + crc.toString(16).toUpperCase().padStart(4, '0');
+};
+
 export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [barcode, setBarcode] = useState('');
@@ -30,6 +60,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
   const [amountReceived, setAmountReceived] = useState('');
   const [discountPercentage, setDiscountPercentage] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<'PAID' | 'PENDING'>('PAID');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listEndRef = useRef<HTMLTableRowElement>(null);
 
@@ -72,6 +103,15 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [cart]);
 
+  // Monitorar estado de tela cheia
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   // Gestão de Atalhos de Teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -79,6 +119,12 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
       if (e.key === 'F2') {
         e.preventDefault();
         inputRef.current?.focus();
+      }
+
+      // F4: Imprimir Nota
+      if (e.key === 'F4') {
+        e.preventDefault();
+        window.print();
       }
       
       // F10: Finalizar Venda
@@ -118,6 +164,34 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     }
   }, [barcode, products]);
 
+  // Função para tocar som de bip
+  const playBeep = () => {
+    try {
+      // Cria o contexto de áudio (funciona na maioria dos navegadores modernos)
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sine'; // Tipo de onda (senoidal = som limpo)
+        osc.frequency.value = 1000; // Frequência em Hz (Bip padrão)
+        gain.gain.value = 0.1; // Volume
+        
+        osc.start();
+        setTimeout(() => {
+          osc.stop();
+          ctx.close();
+        }, 100); // Duração curta
+      }
+    } catch (e) {
+      console.error("Erro ao tocar som de bip", e);
+    }
+  };
+
   // 2. Lógica de Adicionar ao Carrinho (Scanner ou Manual)
   const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -146,6 +220,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
   };
 
   const addToCart = (product: Product) => {
+    playBeep(); // Toca o som ao adicionar
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       
@@ -297,8 +372,102 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
     }
   };
 
+  // Lógica para gerar QR Code PIX
+  const getPixData = () => {
+    const pixKey = (user as any)?.pix_key;
+    if (!pixKey) return null;
+    const amount = transactionStatus === 'PAID' ? calculateTotal() : (parseFloat(amountReceived) || 0);
+    const payload = generatePixPayload(pixKey, user?.establishment_name || 'Loja', 'Brasil', amount.toString());
+    return { payload, qrUrl: payload ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payload)}` : null };
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-11rem)] md:h-[calc(100vh-8rem)] lg:h-[calc(100vh-2rem)] bg-[#121214] text-gray-100 rounded-xl overflow-hidden font-sans shadow-2xl border border-zinc-800">
+    <>
+      {/* Layout de Impressão Térmica (80mm) - Visível apenas na impressão */}
+      <div className="hidden print:block bg-white text-black p-0 m-0 font-mono text-xs w-[80mm]">
+        <div className="text-center mb-2">
+          <h2 className="font-bold text-sm uppercase">{user?.establishment_name || 'Minha Loja'}</h2>
+          <p className="text-[10px]">{new Date().toLocaleString('pt-BR')}</p>
+          <p className="text-[10px]">*** CUPOM NÃO FISCAL ***</p>
+        </div>
+        
+        <div className="border-b border-black border-dashed my-2" />
+        
+        <table className="w-full text-left mb-2">
+          <thead>
+            <tr className="text-[10px]">
+              <th className="pb-1">ITEM</th>
+              <th className="pb-1 text-right">QTD</th>
+              <th className="pb-1 text-right">VL.UN</th>
+              <th className="pb-1 text-right">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cart.map((item) => {
+              let itemPrice = item.unitPrice;
+              if (item.discountValue > 0) {
+                if (item.discountType === 'percentage') {
+                  itemPrice = itemPrice * (1 - item.discountValue / 100);
+                } else {
+                  itemPrice = Math.max(0, itemPrice - item.discountValue);
+                }
+              }
+              const total = itemPrice * item.quantity;
+              
+              return (
+                <tr key={item.product.id} className="align-top">
+                  <td className="pr-1 max-w-[35mm] overflow-hidden truncate">{item.product.name}</td>
+                  <td className="text-right pr-1">{item.quantity}</td>
+                  <td className="text-right pr-1">{itemPrice.toFixed(2)}</td>
+                  <td className="text-right">{total.toFixed(2)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        
+        <div className="border-b border-black border-dashed my-2" />
+        
+        <div className="flex justify-between font-bold text-sm mb-4">
+          <span>TOTAL A PAGAR</span>
+          <span>{formatBRL(calculateTotal())}</span>
+        </div>
+        
+        <div className="text-center text-[10px]">
+          <p>Obrigado pela preferência!</p>
+          <p>Volte sempre.</p>
+        </div>
+      </div>
+
+      {/* Interface do PDV - Oculta na impressão */}
+      <div className="print:hidden flex flex-col lg:flex-row h-[calc(100vh-12rem)] md:h-[calc(100vh-12rem)] lg:h-[calc(100vh-12rem)] bg-[#121214] text-gray-100 rounded-xl overflow-hidden font-sans shadow-2xl border border-zinc-800">
+      <style>{`
+        @media print { @page { margin: 0; size: auto; } body { margin: 0; padding: 0; } }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #18181b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #3f3f46;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #52525b;
+        }
+      `}</style>
       
       {/* COLUNA ESQUERDA: Operação (Input + Lista) */}
       <div className="flex-1 flex flex-col border-r border-zinc-800 relative min-h-0">
@@ -310,8 +479,17 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
               <Monitor size={18} />
               <span className="text-xs font-bold uppercase tracking-widest">PDV 01 • {user?.establishment_name || 'Loja Principal'}</span>
             </div>
-            <div className="text-xs text-zinc-500 font-mono">
-              Operador: <span className="text-zinc-300">{user?.name}</span>
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-zinc-500 font-mono">
+                Operador: <span className="text-zinc-300">{user?.name}</span>
+              </div>
+              <button 
+                onClick={toggleFullscreen}
+                className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-lg transition-colors"
+                title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia"}
+              >
+                {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+              </button>
             </div>
           </div>
 
@@ -363,7 +541,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         </div>
 
         {/* Centro: Tabela de Itens */}
-        <div className="flex-1 overflow-auto bg-[#121214] relative">
+        <div className="flex-1 overflow-auto bg-[#121214] relative custom-scrollbar scroll-smooth">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-[#121214] z-10 shadow-sm border-b border-zinc-800">
               <tr className="text-xs uppercase text-zinc-500 font-bold">
@@ -462,6 +640,9 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         <div className="bg-[#1A1A1E] border-t border-zinc-800 p-3 hidden lg:flex justify-center gap-4 text-xs font-mono text-zinc-500 select-none">
           <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800">
             <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">F2</span> Buscar
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800 cursor-pointer hover:bg-zinc-800 transition-colors" onClick={() => window.print()}>
+            <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">F4</span> Imprimir
           </div>
           <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded border border-zinc-800">
             <span className="font-bold text-zinc-300 bg-zinc-800 px-1.5 rounded">F10</span> Finalizar
@@ -648,6 +829,36 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
                   </div>
                 )}
 
+                {/* Área do QR Code PIX */}
+                {paymentMethod === 'pix' && (transactionStatus === 'PAID' || (transactionStatus === 'PENDING' && parseFloat(amountReceived) > 0)) && (
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col items-center text-center">
+                    {(user as any)?.pix_key ? (
+                      <>
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">Escaneie para pagar</p>
+                        {getPixData()?.qrUrl && (
+                          <img src={getPixData()?.qrUrl || ''} alt="QR Code PIX" className="w-40 h-40 object-contain mb-3" />
+                        )}
+                        <div className="w-full flex items-center gap-2 bg-gray-100 p-2 rounded-lg border border-gray-200">
+                          <p className="text-xs font-mono text-gray-600 truncate flex-1 text-left">{(user as any)?.pix_key}</p>
+                          <button 
+                            onClick={() => { navigator.clipboard.writeText((user as any)?.pix_key); alert('Chave copiada!'); }}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Copiar Chave"
+                          >
+                            <Copy size={16} />
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-rose-500 text-sm font-bold flex flex-col items-center gap-2">
+                        <AlertCircle size={24} />
+                        <p>Chave PIX não configurada.</p>
+                        <p className="text-xs font-normal text-gray-500">Acesse Configurações para cadastrar sua chave.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {transactionStatus === 'PAID' && paymentMethod === 'money' && (
                   <div>
                     <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Valor Recebido</label>
@@ -696,5 +907,6 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete }) 
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 };

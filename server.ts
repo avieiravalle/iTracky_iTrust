@@ -141,6 +141,9 @@ function runMigrations(database: Database.Database) {
     if (!tableInfo.some(col => col.name === 'theme_preference')) {
       database.exec("ALTER TABLE users ADD COLUMN theme_preference TEXT DEFAULT 'system'");
     }
+    if (!tableInfo.some(col => col.name === 'pix_key')) {
+      database.exec("ALTER TABLE users ADD COLUMN pix_key TEXT");
+    }
 
     // Ensure specific admin user exists
     const adminEmail = 'avieiravale@gmail.com';
@@ -212,7 +215,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
     if (err) return res.status(403).json({ error: "Token inválido" });
 
     // SEGURANÇA CRÍTICA: Verificar se o usuário ainda existe e está ativo no banco
-    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name, current_token, custom_colors, logo_url, theme_preference FROM users WHERE id = ?").get(user.id) as any;
+    const dbUser = getDb().prepare("SELECT id, name, role, parent_id, status, establishment_name, current_token, custom_colors, logo_url, theme_preference, pix_key FROM users WHERE id = ?").get(user.id) as any;
     
     if (!dbUser) return res.status(403).json({ error: "Usuário não encontrado ou excluído" });
     if (dbUser.status !== 'active') return res.status(403).json({ error: "Acesso revogado ou pendente" });
@@ -924,7 +927,7 @@ export async function createApp() {
   app.patch("/api/store-settings", authenticateToken, (req: AuthRequest, res) => {
     try {
       const user = req.user;
-      const { custom_colors, theme_preference } = req.body;
+      const { custom_colors, theme_preference, pix_key } = req.body;
 
       if (user.role !== 'gestor') {
         return res.status(403).json({ error: "Apenas gestores podem alterar configurações da loja." });
@@ -934,7 +937,7 @@ export async function createApp() {
       const validThemes = ['light', 'dark', 'system'];
       const finalTheme = theme_preference && validThemes.includes(theme_preference) ? theme_preference : 'system';
 
-      db.prepare("UPDATE users SET custom_colors = ?, theme_preference = ? WHERE id = ?").run(colorsString, finalTheme, user.id);
+      db.prepare("UPDATE users SET custom_colors = ?, theme_preference = ?, pix_key = ? WHERE id = ?").run(colorsString, finalTheme, pix_key, user.id);
       
       logAudit(user.id, user.name, 'UPDATE_SETTINGS', `Configurações da loja atualizadas.`);
       res.json({ success: true });
