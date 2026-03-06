@@ -200,18 +200,22 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 
 ---
 
-## 4. Testes de Frente de Caixa (PDV)
+## 4. Testes de Frente de Caixa (PDV) e Recibos
 
-### Cenário 4.1: Venda Múltipla de Produtos (PDV) - Pago
+### Cenário 4.1: Venda Múltipla (PDV) - Pago com Envio de Recibo
 - **Descrição**: Realizar uma venda de múltiplos produtos no PDV com pagamento imediato.
 - **Passos**:
   1. Fazer login.
   2. Navegar para a seção "PDV".
   3. Adicionar vários produtos ao carrinho, ajustando quantidades.
-  4. Selecionar método de pagamento (ex: Dinheiro, PIX, Cartão).
+  5. No modal de finalização, preencher "Nome do Cliente" e "Número do WhatsApp" com dados válidos.
+  6. Selecionar método de pagamento (ex: Dinheiro, PIX, Cartão).
   5. Clicar em "Finalizar Venda".
 - **Validações E2E**:
   - Todos os `current_stock` dos produtos são atualizados.
+  - A tela de impressão do navegador **não** é aberta.
+  - Um log `[WHATSAPP SIM]` aparece no console do servidor, simulando o envio da mensagem.
+  - O `client_name` e `client_phone` são salvos corretamente nas transações no banco de dados.
   - Múltiplas transações do tipo 'EXIT' com `status = 'PAID'` são registradas.
   - O lucro total é refletido no "Lucro Realizado" no Dashboard.
   - O carrinho é limpo após a venda.
@@ -222,11 +226,13 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   1. Fazer login.
   2. Navegar para a seção "PDV".
   3. Adicionar vários produtos ao carrinho.
-  4. Selecionar `status = 'PENDING'` e informar `client_name`.
+  4. No modal de finalização, selecionar `status = 'PENDING'`, informar `client_name` e `client_phone`.
   5. Clicar em "Finalizar Venda".
 - **Validações E2E**:
   - Todos os `current_stock` dos produtos são atualizados.
   - Múltiplas transações do tipo 'EXIT' com `status = 'PENDING'` são registradas.
+  - Um log `[WHATSAPP SIM]` aparece no console do servidor.
+  - O `client_name` e `client_phone` são salvos corretamente.
   - O lucro total é refletido no "Lucro a Receber" no Dashboard e na seção "Financeiro".
 
 ### Cenário 4.3: Scanner de Código de Barras (PDV/Entrada)
@@ -253,6 +259,19 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Após a venda, as transações são registradas no banco de dados com o preço de venda unitário (`sale_price` ou campo similar) refletindo o valor com desconto.
   - O lucro da venda, calculado no backend, deve ser baseado no preço final com desconto.
   - O campo de desconto é limpo para a próxima venda.
+
+### Cenário 4.5: Venda com Falha no Envio de WhatsApp
+- **Descrição**: Realizar uma venda com um número de WhatsApp inválido para garantir que a venda seja concluída mesmo com a falha na notificação.
+- **Passos**:
+  1. Fazer login e navegar para o "PDV".
+  2. Adicionar produtos ao carrinho.
+  3. No modal de finalização, preencher "Nome do Cliente" e um "Número do WhatsApp" inválido (ex: "123").
+  4. Selecionar o método de pagamento e clicar em "Finalizar Venda".
+- **Validações E2E**:
+  - A venda é concluída com sucesso na interface (o carrinho é limpo).
+  - Os estoques são atualizados e as transações são salvas corretamente no banco de dados.
+  - Um log de erro `[WHATSAPP FALHA]` é registrado no console do servidor.
+  - A interface do usuário não é bloqueada e não exibe um erro crítico para o usuário final.
 
 ---
 
@@ -293,9 +312,26 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 
 ---
 
-## 6. Testes de Relatórios e Dashboard
+## 6. Testes de Clientes
 
-### Cenário 6.1: Dashboard - Visão Geral
+### Cenário 6.1: Visualização da Lista de Clientes
+- **Descrição**: Um gestor visualiza a lista de clientes gerada a partir das vendas.
+- **Passos**:
+  1. Fazer login como Gestor.
+  2. Realizar algumas vendas (PDV ou Saída Simples) para clientes nomeados, por exemplo: "Cliente A", "Cliente B".
+  3. Realizar uma venda para "Consumidor Final" ou sem nome de cliente.
+  4. Navegar para a nova seção "Clientes".
+- **Validações E2E**:
+  - A tela exibe uma lista contendo "Cliente A" e "Cliente B".
+  - O cliente "Consumidor Final" (ou vendas sem nome) não deve aparecer na lista.
+  - Para cada cliente, são exibidos o "Valor Total Gasto" e a "Data da Última Compra".
+  - Os valores exibidos correspondem à soma dos `amount_paid` e à `timestamp` mais recente das transações para cada cliente.
+
+---
+
+## 7. Testes de Relatórios e Dashboard
+
+### Cenário 7.1: Dashboard - Visão Geral
 - **Descrição**: Verificar os dados exibidos no Dashboard.
 - **Passos**:
   1. Fazer login.
@@ -306,7 +342,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - "Lucro a Receber" reflete a soma dos lucros de transações 'EXIT' com `status = 'PENDING'`.
   - O gráfico de evolução de lucro exibe dados consistentes com as vendas registradas.
 
-### Cenário 6.2: Informativo de Lucros por Produto
+### Cenário 7.2: Informativo de Lucros por Produto
 - **Descrição**: Visualizar os produtos mais lucrativos.
 - **Passos**:
   1. Fazer login.
@@ -315,7 +351,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - A lista de produtos é exibida, ordenada pelo lucro total.
   - O lucro de cada produto é calculado corretamente.
 
-### Cenário 6.3: Evolução de Lucro por Período
+### Cenário 7.3: Evolução de Lucro por Período
 - **Descrição**: Verificar o gráfico de evolução de lucro para diferentes períodos.
 - **Passos**:
   1. Fazer login.
@@ -325,7 +361,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - O gráfico é atualizado para refletir os dados do período selecionado.
   - Os valores no gráfico correspondem aos lucros das transações 'EXIT' no período.
 
-### Cenário 6.4: Geração de Relatório de Fechamento de Período
+### Cenário 7.4: Geração de Relatório de Fechamento de Período
 - **Descrição**: Um gestor gera um relatório em PDF para um período específico.
 - **Passos**:
   1. Fazer login como Gestor.
@@ -344,9 +380,9 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 
 ---
 
-## 7. Testes de Funcionalidades Administrativas (Apenas para Admin)
+## 8. Testes de Funcionalidades Administrativas (Apenas para Admin)
 
-### Cenário 7.1: Visualização de Usuários (Admin)
+### Cenário 8.1: Visualização de Usuários (Admin)
 - **Descrição**: O administrador visualiza todos os usuários cadastrados (exceto outros admins).
 - **Passos**:
   1. Fazer login como `admin` (avieiravale@gmail.com).
@@ -355,7 +391,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Uma lista de todos os usuários (Gestores e Colaboradores) é exibida.
   - Informações como nome, e-mail, loja, função, status e último pagamento são visíveis.
 
-### Cenário 7.2: Aprovação/Rejeição de Gestor (Admin)
+### Cenário 8.2: Aprovação/Rejeição de Gestor (Admin)
 - **Descrição**: O administrador altera o status de um gestor pendente.
 - **Passos**:
   1. Fazer login como `admin`.
@@ -366,7 +402,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - O `status` do gestor é alterado para 'active' no banco de dados e na interface.
   - O gestor agora consegue fazer login (Cenário 1.3).
 
-### Cenário 7.3: Desativação/Ativação de Usuário (Admin)
+### Cenário 8.3: Desativação/Ativação de Usuário (Admin)
 - **Descrição**: O administrador desativa ou reativa um usuário.
 - **Passos**:
   1. Fazer login como `admin`.
@@ -379,7 +415,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Usuário desativado não consegue fazer login (erro "Acesso revogado").
   - Usuário reativado consegue fazer login.
 
-### Cenário 7.4: Registro de Pagamento Manual (Admin)
+### Cenário 8.4: Registro de Pagamento Manual (Admin)
 - **Descrição**: O administrador registra um pagamento manual para um usuário.
 - **Passos**:
   1. Fazer login como `admin`.
@@ -391,7 +427,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - O `status` do usuário é definido como 'active'.
   - Uma nova entrada é adicionada na tabela `app_sales`.
 
-### Cenário 7.5: Visualização de Vendas do Aplicativo (Admin)
+### Cenário 8.5: Visualização de Vendas do Aplicativo (Admin)
 - **Descrição**: O administrador visualiza as vendas de planos do aplicativo.
 - **Passos**:
   1. Fazer login como `admin`.
@@ -400,7 +436,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Uma lista de todas as vendas de planos (`app_sales`) é exibida.
   - Informações como cliente, valor e data são visíveis.
 
-### Cenário 7.6: Visualização de Logs de Auditoria (Admin)
+### Cenário 8.6: Visualização de Logs de Auditoria (Admin)
 - **Descrição**: O administrador visualiza os logs de auditoria do sistema.
 - **Passos**:
   1. Fazer login como `admin`.
@@ -409,7 +445,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Uma lista dos últimos logs de auditoria é exibida.
   - Ações como login, cadastro, criação de produto, movimentações, etc., são registradas.
 
-### Cenário 7.7: Reset Completo do Banco de Dados (Admin)
+### Cenário 8.7: Reset Completo do Banco de Dados (Admin)
 - **Descrição**: O administrador reseta completamente o banco de dados (exceto o próprio admin).
 - **Passos**:
   1. Fazer login como `admin`.
@@ -422,9 +458,9 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 
 ---
 
-## 8. Testes de Webhook (PIX)
+## 9. Testes de Webhook (PIX)
 
-### Cenário 8.1: Aprovação Automática de Pagamento PIX
+### Cenário 9.1: Aprovação Automática de Pagamento PIX
 - **Descrição**: Um pagamento PIX é aprovado via webhook, ativando um gestor pendente.
 - **Passos**:
   1. Registrar um novo gestor (Cenário 1.1), deixando-o com `status = 'pending'`.
@@ -445,9 +481,9 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
 
 ---
 
-## 9. Testes de Integridade e Casos de Borda
+## 10. Testes de Integridade e Casos de Borda
 
-### Cenário 9.1: Limite de Colaboradores por Loja
+### Cenário 10.1: Limite de Colaboradores por Loja
 - **Descrição**: Tentar adicionar mais de 4 colaboradores a uma loja.
 - **Passos**:
   1. Registrar um gestor.
@@ -457,7 +493,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Mensagem de erro "Limite de colaboradores atingido" é exibida.
   - O 5º colaborador não é registrado.
 
-### Cenário 9.2: Exclusão de Usuário (Admin)
+### Cenário 10.2: Exclusão de Usuário (Admin)
 - **Descrição**: O administrador exclui um usuário e verifica a cascata.
 - **Passos**:
   1. Fazer login como `admin`.
@@ -469,7 +505,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Todos os produtos e transações associados a esse gestor são removidos do banco de dados (devido a `ON DELETE CASCADE`).
   - Um log de auditoria para a exclusão é registrado.
 
-### Cenário 9.3: Conflitos de ID
+### Cenário 10.3: Conflitos de ID
 - **Descrição**: Tentar cadastrar um produto com um ID já existente para o mesmo `user_id`.
 - **Passos**:
   1. Fazer login.
@@ -479,7 +515,7 @@ Este documento descreve os cenários de teste End-to-End (E2E) para o Sistema de
   - Mensagem de erro "UNIQUE constraint failed: products.user_id, products.sku" ou similar é exibida (o nome da coluna no banco não muda).
   - O segundo produto não é cadastrado.
 
-### Cenário 9.4: Validação de Limites de Plano
+### Cenário 10.4: Validação de Limites de Plano
 - **Descrição**: Tentar adicionar usuários além do limite permitido pelo plano da loja.
 - **Passos (Plano Profissional - 1 Gestor, 9 Colaboradores)**:
   1. Fazer login como `admin`.

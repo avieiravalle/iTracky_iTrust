@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, ScanBarcode, Delete, X, CreditCard, Banknote, QrCode, CheckCircle2, Keyboard, Monitor, Tag, Clock, Copy, AlertCircle, Maximize, Minimize, Printer, RotateCcw } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, ScanBarcode, Delete, X, CreditCard, Banknote, QrCode, CheckCircle2, Keyboard, Monitor, Tag, Clock, Copy, AlertCircle, Maximize, Minimize, Printer, RotateCcw, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, User } from '../types';
 import { formatBRL } from '../utils/format';
@@ -56,10 +56,12 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
   const [barcode, setBarcode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [completedSale, setCompletedSale] = useState<{ transactions: any[], cart: CartItem[] } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'money' | 'credit' | 'debit' | 'pix'>('money');
-  const [clientName, setClientName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [clientName, setClientName] = useState('');
   const [amountReceived, setAmountReceived] = useState('');
   const [discountPercentage, setDiscountPercentage] = useState('');
   const [transactionStatus, setTransactionStatus] = useState<'PAID' | 'PENDING'>('PAID');
@@ -86,7 +88,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
 
   // 1. Foco Permanente: Foca ao montar e sempre que o carrinho mudar
   useEffect(() => {
-    if (showPaymentModal) return;
+    if (showPaymentModal || showReceiptModal) return;
 
     const focusInput = () => {
       // Pequeno delay para garantir que a renderização terminou
@@ -109,14 +111,13 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       // Se não clicou em um botão ou input, foca no scanner
-      if (!showPaymentModal && target.tagName !== 'BUTTON' && target.tagName !== 'INPUT' && target.tagName !== 'A') {
+      if (!showPaymentModal && !showReceiptModal && target.tagName !== 'BUTTON' && target.tagName !== 'INPUT' && target.tagName !== 'A') {
         focusInput();
       }
     };
-
     document.addEventListener('click', handleGlobalClick);
     return () => document.removeEventListener('click', handleGlobalClick);
-  }, [cart, showPaymentModal]);
+  }, [cart, showPaymentModal, showReceiptModal]);
 
   // Auto-scroll: Rola para o último item sempre que o carrinho mudar
   useEffect(() => {
@@ -193,7 +194,10 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
       if (e.key === 'Escape') {
         if (showPaymentModal) {
           setShowPaymentModal(false);
+          setClientName('');
           setAmountReceived('');
+        } else if (showReceiptModal) {
+          handleCloseReceiptModal();
         } else {
           handleCancelSale();
         }
@@ -201,14 +205,13 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, showPaymentModal]);
+  }, [cart, showPaymentModal, showReceiptModal]);
 
   // Efeito para filtrar sugestões enquanto digita
   useEffect(() => {
     if (barcode.length > 1) {
-      const matches = products.filter(p => 
-        p.name.toLowerCase().includes(barcode.toLowerCase()) || 
-        p.sku.toLowerCase().includes(barcode.toLowerCase())
+      const matches = products.filter(p =>
+        p.name.toLowerCase().includes(barcode.toLowerCase()) || p.sku.toLowerCase().includes(barcode.toLowerCase())
       ).slice(0, 5); // Limita a 5 sugestões
       setSuggestions(matches);
     } else {
@@ -404,12 +407,6 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
-    
-    if (transactionStatus === 'PENDING' && !clientName.trim()) {
-      alert('Nome do cliente é obrigatório para vendas "A Receber".');
-      setIsProcessing(false);
-      return;
-    }
 
     try {
       const itemsPayload = cart.map(item => {
@@ -438,7 +435,7 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
         body: JSON.stringify({
           items: itemsPayload,
           paymentMethod,
-          clientName,
+          clientName: clientName,
           status: transactionStatus,
           amountPaid: transactionStatus === 'PENDING' ? (parseFloat(amountReceived.replace(',', '.')) || 0) : undefined
         })
@@ -446,19 +443,10 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
 
       if (res.ok) {
         setShowPaymentModal(false);
-        
-        setLastSale([...cart]); // Salva para reimpressão
-        setTimeout(() => {
-          if (window.confirm('Venda realizada com sucesso! Deseja imprimir o comprovante?')) {
-            window.print();
-          }
-          setCart([]);
-          setClientName('');
-          setAmountReceived('');
-          setDiscountPercentage('');
-          setTransactionStatus('PAID');
-          onCheckoutComplete();
-        }, 500);
+        const data = await res.json();
+        // Venda bem-sucedida, agora abre o modal de recibo
+        setCompletedSale({ transactions: data.transactions, cart: [...cart] });
+        setShowReceiptModal(true);
       } else {
         const data = await res.json();
         alert(`Erro: ${data.error}`);
@@ -469,6 +457,55 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
       setIsProcessing(false);
     }
   };
+
+  const resetPOS = () => {
+    setCart([]);
+    setAmountReceived('');
+    setClientName('');
+    setDiscountPercentage('');
+    setTransactionStatus('PAID');
+    onCheckoutComplete();
+    setCompletedSale(null);
+    setShowReceiptModal(false);
+    setLastSale([]);
+  };
+
+  const handleSendReceipt = async (receiptClientName: string, receiptClientPhone: string) => {
+    if (!completedSale || !receiptClientName || !receiptClientPhone) {
+      alert("Nome e WhatsApp são obrigatórios para enviar o recibo.");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const transactionIds = completedSale.transactions.map(t => t.id);
+      const itemsForReceipt = completedSale.cart.map(item => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        unit_price: item.unitPrice // Usar o preço unitário do carrinho
+      }));
+
+      await fetch('/api/receipt/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          transactionIds,
+          clientName: receiptClientName,
+          clientPhone: receiptClientPhone,
+          items: itemsForReceipt
+        })
+      });
+      alert('Recibo enviado com sucesso!');
+    } catch (error) {
+      alert('Erro de conexão ao enviar recibo.');
+    } finally {
+      setIsProcessing(false);
+      resetPOS();
+    }
+  };
+
+  const handleCloseReceiptModal = () => resetPOS();
 
   // Lógica para gerar QR Code PIX
   const getPixData = () => {
@@ -884,20 +921,6 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
                   </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
-                    Cliente {transactionStatus === 'PENDING' ? '(Obrigatório)' : '(Opcional)'}
-                  </label>
-                  <input 
-                    type="text" 
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    placeholder="Nome do cliente"
-                    className={`w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-2 focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white transition-colors ${transactionStatus === 'PENDING' && !clientName ? 'border-amber-500/50' : 'border-transparent'}`}
-                    autoFocus={transactionStatus === 'PENDING'}
-                  />
-                </div>
-
                 {transactionStatus === 'PENDING' && (
                   <div>
                     <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Valor de Entrada (Opcional)</label>
@@ -912,20 +935,37 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
                   </div>
                 )}
 
+                {transactionStatus === 'PENDING' && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
+                      Nome do Cliente (Obrigatório)
+                    </label>
+                    <input 
+                      id="clientNameModal"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Nome para o registro 'A Receber'"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-2 border-amber-500/50 focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white transition-colors"
+                    />
+                  </div>
+                )}
+
                 {(transactionStatus === 'PAID' || (transactionStatus === 'PENDING' && parseFloat(amountReceived) > 0)) ? (
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Forma de Pagamento {transactionStatus === 'PENDING' ? 'da Entrada' : ''}</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Forma de Pagamento</label>
+                    <div className="grid grid-cols-4 gap-2">
                       <button 
+                        type="button"
                         onClick={() => setPaymentMethod('money')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'money' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'money' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
                       >
                         <Banknote size={24} />
                         <span className="text-xs font-bold">Dinheiro</span>
                       </button>
                       <button 
+                        type="button"
                         onClick={() => setPaymentMethod('pix')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-100 dark:border-zinc-700 dark:text-gray-300'}`}
                       >
                         <QrCode size={24} />
                         <span className="text-xs font-bold">PIX</span>
@@ -1028,6 +1068,62 @@ export const POS: React.FC<POSProps> = ({ products, user, onCheckoutComplete, on
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Envio de Recibo */}
+      <AnimatePresence>
+        {showReceiptModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-zinc-800"
+            >
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle2 size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Venda Realizada com Sucesso!</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Deseja enviar o recibo via WhatsApp para o cliente?
+                </p>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                handleSendReceipt(formData.get('receiptClientName') as string, formData.get('receiptClientPhone') as string);
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nome do Cliente</label>
+                  <input name="receiptClientName" type="text" placeholder="Nome para o recibo" required className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Nº de WhatsApp</label>
+                  <input name="receiptClientPhone" type="tel" placeholder="(XX) 9XXXX-XXXX" required 
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, '');
+                      value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+                      value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+                      e.target.value = value.slice(0, 15);
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border-none focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white" />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={handleCloseReceiptModal} className="flex-1 py-3 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors">
+                    Não, obrigado
+                  </button>
+                  <button type="submit" disabled={isProcessing} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+                    {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : (
+                      <> <Send size={18} /> Enviar Recibo </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

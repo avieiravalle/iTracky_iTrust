@@ -52,7 +52,9 @@ function runMigrations(database: Database.Database) {
       current_token TEXT,
       custom_colors TEXT,
       logo_url TEXT,
-      theme_preference TEXT DEFAULT 'system'
+      theme_preference TEXT DEFAULT 'system',
+      zapi_instance TEXT,
+      zapi_token TEXT
     );
 
     CREATE TABLE IF NOT EXISTS products (
@@ -84,7 +86,7 @@ function runMigrations(database: Database.Database) {
       payment_method TEXT,
       FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     );
-
+    
     CREATE TABLE IF NOT EXISTS app_sales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -106,6 +108,10 @@ function runMigrations(database: Database.Database) {
       action TEXT NOT NULL,
       details TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS clients (
+      id INTEGER PRIMARY KEY, user_id INTEGER, name TEXT, phone TEXT, UNIQUE(user_id, phone), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
 
@@ -129,6 +135,10 @@ function runMigrations(database: Database.Database) {
     if (!transactionInfo.some(col => col.name === 'payment_method')) {
       database.exec("ALTER TABLE transactions ADD COLUMN payment_method TEXT");
     }
+    if (!transactionInfo.some(col => col.name === 'client_phone')) {
+      database.exec("ALTER TABLE transactions ADD COLUMN client_phone TEXT");
+    }
+
     if (!tableInfo.some(col => col.name === 'current_token')) {
       database.exec("ALTER TABLE users ADD COLUMN current_token TEXT");
     }
@@ -146,6 +156,12 @@ function runMigrations(database: Database.Database) {
     }
     if (!tableInfo.some(col => col.name === 'login_background_url')) {
       database.exec("ALTER TABLE users ADD COLUMN login_background_url TEXT");
+    }
+    if (!tableInfo.some(col => col.name === 'zapi_instance')) {
+      database.exec("ALTER TABLE users ADD COLUMN zapi_instance TEXT");
+    }
+    if (!tableInfo.some(col => col.name === 'zapi_token')) {
+      database.exec("ALTER TABLE users ADD COLUMN zapi_token TEXT");
     }
 
     // Ensure specific admin user exists
@@ -317,6 +333,73 @@ function scheduleDailyBackup() {
   }, msUntilMidnight);
 }
 
+/**
+ * Envia uma mensagem de texto via WhatsApp usando a API configurada.
+ * @param phone - O número de telefone do destinatário (ex: 55119...).
+ * @param message - A mensagem de texto a ser enviada.
+ */
+async function sendWhatsAppMessage(phone: string, message: string, ownerId?: number) {
+  let ZAPI_INSTANCE = process.env.ZAPI_INSTANCE;
+  let ZAPI_TOKEN = process.env.ZAPI_TOKEN;
+  let source = 'ambiente (.env)';
+
+  // Se um ownerId (gestor) for fornecido, tenta buscar as credenciais do banco de dados.
+  if (ownerId) {
+    const db = getDb();
+    const credentials = db.prepare("SELECT zapi_instance, zapi_token FROM users WHERE id = ?").get(ownerId) as any;
+    if (credentials && credentials.zapi_instance && credentials.zapi_token) {
+      ZAPI_INSTANCE = credentials.zapi_instance;
+      ZAPI_TOKEN = credentials.zapi_token;
+      source = `configurações do usuário ID ${ownerId}`;
+    }
+  }
+
+  // Se, após todas as verificações, não houver credenciais, simula o envio.
+  if (!ZAPI_INSTANCE || !ZAPI_TOKEN) {
+    console.log(`[WHATSAPP SIM] Para: ${phone} | Msg: ${message.replace(/\n/g, ' ')} (Credenciais não configuradas em ${source})`);
+    return;
+  }
+
+  try {
+    // Exemplo de chamada real para a Z-API
+    const response = await fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/send-text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone, message: message })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(JSON.stringify(errorData));
+    }
+    console.log(`[WHATSAPP SUCESSO] Mensagem enviada para ${phone} usando credenciais de ${source}`);
+  } catch (error) {
+    console.error(`[WHATSAPP FALHA] Erro ao tentar enviar mensagem para ${phone}:`, error);
+  }
+}
+/**
+ * Simula o envio de um recibo via WhatsApp.
+ * Em um cenário real, esta função conteria a lógica para chamar uma API externa (ex: Z-API, Twilio).
+ * @param phone - O número de telefone do cliente.
+ * @param clientName - O nome do cliente.
+ * @param items - Array de itens da compra.
+ * @param total - O valor total da compra.
+ * @param storeName - O nome do estabelecimento.
+ */
+async function sendWhatsAppReceipt(phone: string, clientName: string, items: any[], total: number, storeName: string, ownerId: number) {
+  // Formatação e validação básica do número
+  const formattedPhone = `55${phone.replace(/\D/g, '')}`;
+  if (formattedPhone.length < 12) { // Ex: 55 (DD) 9XXXX-XXXX
+    console.error(`[WHATSAPP FALHA] Número de telefone inválido ou incompleto: ${phone}`);
+    return; // Critério de Aceite 4: Falha silenciosa no log.
+  }
+
+  const receiptItems = items.map(item => `- ${item.quantity}x ${item.name} (R$ ${item.unit_price.toFixed(2)})`).join('\n');
+  const receiptText = `Olá, ${clientName}!\nObrigado por comprar na *${storeName}*.\n\n*Resumo da sua compra:*\n${receiptItems}\n\n*Total: R$ ${total.toFixed(2)}*\n\nAgradecemos a preferência!`;
+
+  // Chama a nova função helper para realizar o envio
+  await sendWhatsAppMessage(formattedPhone, receiptText, ownerId);
+}
+
 export async function createApp() {
   initDb();
   const db = getDb();
@@ -442,15 +525,7 @@ export async function createApp() {
           const adminPhone = "5511930051475";
           const waMessage = `🔔 *Novo Gestor Pendente*\n\n👤 *Nome:* ${name}\n🏢 *Loja:* ${establishment_name}\n📧 *Email:* ${email}\n\n_Acesse o painel para liberar._`;
           
-          // Exemplo de implementação (Descomente e ajuste a URL/Token do seu provedor):
-          /*
-          fetch('https://api.seuservico-whatsapp.com/send-text', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer SEU_TOKEN_AQUI' },
-            body: JSON.stringify({ phone: adminPhone, message: waMessage })
-          }).catch(err => console.error("Erro ao enviar WhatsApp:", err));
-          */
-          console.log(`[WHATSAPP ALERT] Para: ${adminPhone} | Msg: ${waMessage.replace(/\n/g, ' ')}`);
+          sendWhatsAppMessage(adminPhone, waMessage); // Sem ownerId, usa .env
         }
 
         logAudit(info.lastInsertRowid as number, name, 'CADASTRO_GESTOR', `Novo gestor registrado: ${email} - Loja: ${establishment_name}`);
@@ -933,7 +1008,7 @@ export async function createApp() {
   app.patch("/api/store-settings", authenticateToken, (req: AuthRequest, res) => {
     try {
       const user = req.user;
-      const { custom_colors, theme_preference, pix_key } = req.body;
+      const { custom_colors, theme_preference, pix_key, zapi_instance, zapi_token } = req.body;
 
       if (user.role !== 'gestor') {
         return res.status(403).json({ error: "Apenas gestores podem alterar configurações da loja." });
@@ -943,7 +1018,7 @@ export async function createApp() {
       const validThemes = ['light', 'dark', 'system'];
       const finalTheme = theme_preference && validThemes.includes(theme_preference) ? theme_preference : 'system';
 
-      db.prepare("UPDATE users SET custom_colors = ?, theme_preference = ?, pix_key = ? WHERE id = ?").run(colorsString, finalTheme, pix_key, user.id);
+      db.prepare("UPDATE users SET custom_colors = ?, theme_preference = ?, pix_key = ?, zapi_instance = ?, zapi_token = ? WHERE id = ?").run(colorsString, finalTheme, pix_key, zapi_instance, zapi_token, user.id);
       
       logAudit(user.id, user.name, 'UPDATE_SETTINGS', `Configurações da loja atualizadas.`);
       res.json({ success: true });
@@ -1117,6 +1192,32 @@ export async function createApp() {
     }
   });
 
+  // --- ROTAS DE GESTÃO DE CLIENTES ---
+
+  app.get("/api/clients", authenticateToken, (req: AuthRequest, res) => {
+    try {
+      const user = req.user;
+      const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+
+      // Agrupa transações por nome de cliente para criar uma lista de clientes únicos
+      const clients = db.prepare(`
+        SELECT
+          client_name,
+          SUM(amount_paid) as total_spent,
+          MAX(timestamp) as last_purchase
+        FROM transactions
+        WHERE product_id IN (SELECT id FROM products WHERE user_id = ?)
+          AND client_name IS NOT NULL AND client_name != '' AND client_name != 'Consumidor Final'
+        GROUP BY client_name
+        ORDER BY last_purchase DESC
+      `).all(ownerId);
+
+      res.json(clients);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/collaborators/:id", authenticateToken, (req: AuthRequest, res) => {
     try {
       const user = req.user;
@@ -1144,6 +1245,7 @@ export async function createApp() {
     try {
       const user = req.user;
       const transactionStatus = status || 'PAID';
+      const createdTransactions: any[] = [];
       
       db.transaction(() => {
         let totalAmount = 0;
@@ -1174,17 +1276,97 @@ export async function createApp() {
           const finalPaymentMethod = itemAmountPaid > 0 ? paymentMethod : null;
           const finalClientName = clientName || (transactionStatus === 'PENDING' ? 'Cliente não identificado' : 'Consumidor Final');
 
-          db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, client_name, amount_paid, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          const info = db.prepare("INSERT INTO transactions (product_id, type, quantity, unit_cost, cost_at_transaction, status, client_name, amount_paid, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
             .run(item.product_id, 'EXIT', item.quantity, item.unit_price, product.average_cost, transactionStatus, finalClientName, itemAmountPaid, finalPaymentMethod);
+          
+          // Adiciona o ID da transação e os detalhes do item para retorno
+          createdTransactions.push({ id: info.lastInsertRowid, ...item, name: product.name });
         }
 
         logAudit(user.id, user.name, 'VENDA_PDV', `Venda PDV realizada (${transactionStatus}). Total: R$ ${totalAmount.toFixed(2)} - Itens: ${items.length}`);
       })();
 
-      res.json({ success: true });
+      // Retorna as transações criadas para o frontend poder usá-las no envio do recibo
+      res.json({ success: true, transactions: createdTransactions });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
+  });
+
+  // Rota para enviar recibo e atualizar dados do cliente pós-venda
+  app.post("/api/receipt/send", authenticateToken, async (req: AuthRequest, res) => {
+    const { transactionIds, clientName, clientPhone, items } = req.body;
+    const user = req.user;
+
+    if (!transactionIds || transactionIds.length === 0 || !clientName || !clientPhone || !items) {
+      return res.status(400).json({ error: "Dados insuficientes para enviar o recibo." });
+    }
+
+    try {
+      const placeholders = transactionIds.map(() => '?').join(',');
+      
+      // Atualiza o nome e telefone do cliente nas transações
+      db.prepare(`UPDATE transactions SET client_name = ?, client_phone = ? WHERE id IN (${placeholders})`)
+        .run(clientName, clientPhone, ...transactionIds);
+
+      const totalSaleValue = items.reduce((acc: number, item: any) => acc + (item.unit_price * item.quantity), 0);
+
+      const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+      // Envia o recibo de forma assíncrona
+      sendWhatsAppReceipt(clientPhone, clientName, items, totalSaleValue, user.establishment_name, ownerId);
+
+      logAudit(user.id, user.name, 'ENVIO_RECIBO_WHATSAPP', `Recibo enviado para ${clientName} (${clientPhone})`);
+
+      res.json({ success: true, message: "Recibo enviado." });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rota para buscar o QR Code de (re)conexão do WhatsApp
+  app.get("/api/whatsapp/reconnect-qrcode", authenticateToken, async (req: AuthRequest, res) => {
+    const user = req.user;
+    const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+
+    const credentials = db.prepare("SELECT zapi_instance, zapi_token FROM users WHERE id = ?").get(ownerId) as any;
+
+    if (!credentials || !credentials.zapi_instance || !credentials.zapi_token) {
+      return res.status(400).json({ error: "Credenciais do WhatsApp não configuradas." });
+    }
+
+    try {
+      // Tenta buscar a imagem do QR Code da Z-API
+      const response = await fetch(`https://api.z-api.io/instances/${credentials.zapi_instance}/token/${credentials.zapi_token}/qr-code/image`);
+      
+      if (response.status === 200) {
+        const imageBuffer = await response.arrayBuffer();
+        const base64Image = Buffer.from(imageBuffer).toString('base64');
+        res.json({ qrCode: `data:image/png;base64,${base64Image}` });
+      } else {
+        // Se não houver QR Code (ex: já conectado), retorna um status
+        const errorData = await response.json();
+        if (errorData.value === 'CONNECTED') {
+          res.json({ status: 'CONNECTED' });
+        } else {
+          throw new Error(errorData.error || 'Falha ao obter QR Code da API.');
+        }
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/whatsapp/connection-status", authenticateToken, async (req: AuthRequest, res) => {
+    const user = req.user;
+    const ownerId = user.role === 'colaborador' ? user.parent_id : user.id;
+    const credentials = db.prepare("SELECT zapi_instance, zapi_token FROM users WHERE id = ?").get(ownerId) as any;
+
+    if (!credentials || !credentials.zapi_instance || !credentials.zapi_token) {
+      return res.json({ status: 'NOT_CONFIGURED' });
+    }
+    // Em um cenário real, chamaríamos a API para verificar o status.
+    // Por simplicidade, vamos assumir que se as credenciais existem, está conectado.
+    res.json({ status: 'CONNECTED' });
   });
 
   app.get("/api/admin/users", (req, res) => {

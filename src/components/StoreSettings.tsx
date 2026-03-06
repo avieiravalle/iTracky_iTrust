@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Upload, RefreshCw, Palette, Trash2, Sun, Moon, Monitor, Loader2, QrCode, Image as ImageIcon } from 'lucide-react';
+import { Save, Upload, RefreshCw, Palette, Trash2, Sun, Moon, Monitor, Loader2, QrCode, Image as ImageIcon, X, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
 import { User } from '../types';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface StoreSettingsProps {
   user: User | null;
@@ -25,12 +26,18 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
   });
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>((user as any)?.theme_preference || 'system');
   const [pixKey, setPixKey] = useState((user as any)?.pix_key || '');
+  const [zapiInstance, setZapiInstance] = useState((user as any)?.zapi_instance || '');
+  const [zapiToken, setZapiToken] = useState((user as any)?.zapi_token || '');
   const [logoUrl, setLogoUrl] = useState((user as any)?.logo_url || '');
   const [loginBgUrl, setLoginBgUrl] = useState((user as any)?.login_background_url || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const [showScanner, setShowScanner] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [showReconnectModal, setShowReconnectModal] = useState(false);
+  const [reconnectQrCode, setReconnectQrCode] = useState<string | null>(null);
 
   // Referência para manter o usuário atualizado sem disparar re-renders do efeito de cor
   const userRef = useRef(user);
@@ -45,6 +52,12 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
     }
     if ((user as any)?.login_background_url !== loginBgUrl) {
       setLoginBgUrl((user as any)?.login_background_url || '');
+    }
+    if ((user as any)?.zapi_instance !== zapiInstance) {
+      setZapiInstance((user as any)?.zapi_instance || '');
+    }
+    if ((user as any)?.zapi_token !== zapiToken) {
+      setZapiToken((user as any)?.zapi_token || '');
     }
   }, [user]);
 
@@ -80,6 +93,67 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
       setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
     }
   }, [themeMode, setDarkMode]);
+
+  // Efeito para controlar o Scanner de QR Code
+  useEffect(() => {
+    if (showScanner && !scannerRef.current) {
+      const scanner = new Html5QrcodeScanner(
+        "zapi-qr-reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        false
+      );
+      scannerRef.current = scanner;
+
+      const onScanSuccess = (decodedText: string) => {
+        try {
+          const qrData = JSON.parse(decodedText);
+          if (qrData.instanceId && qrData.token) {
+            setZapiInstance(qrData.instanceId);
+            setZapiToken(qrData.token);
+            setShowScanner(false);
+            alert('Credenciais do WhatsApp lidas com sucesso! Clique em "Salvar Alterações" para confirmar.');
+          } else {
+            alert('QR Code inválido. O código deve conter "instanceId" e "token".');
+          }
+        } catch (e) {
+          alert('Falha ao ler o QR Code. O conteúdo não é um formato JSON válido.');
+        }
+      };
+
+      scanner.render(onScanSuccess, () => {});
+    }
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(console.error);
+        scannerRef.current = null;
+      }
+    };
+  }, [showScanner]);
+
+  const handleReconnect = async () => {
+    setShowReconnectModal(true);
+    setReconnectQrCode(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/whatsapp/reconnect-qrcode', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.qrCode) {
+          setReconnectQrCode(data.qrCode);
+        } else if (data.status === 'CONNECTED') {
+          alert('Sua conexão com o WhatsApp já está ativa!');
+          setShowReconnectModal(false);
+        }
+      } else {
+        throw new Error(data.error || 'Falha ao buscar QR Code.');
+      }
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
 
   const handleColorChange = (key: keyof typeof colors, value: string) => {
     setColors(prev => ({ ...prev, [key]: value }));
@@ -226,7 +300,9 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
         body: JSON.stringify({
           custom_colors: colors,
           theme_preference: themeMode,
-          pix_key: pixKey
+          pix_key: pixKey,
+          zapi_instance: zapiInstance,
+          zapi_token: zapiToken,
         })
       });
 
@@ -255,6 +331,45 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
           <p className="text-gray-500 dark:text-gray-400">Personalize as cores e o logo da sua loja no sistema.</p>
         </div>
       </div>
+
+      {/* Modal do Scanner */}
+      {showScanner && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-800 w-full max-w-md rounded-2xl p-6 shadow-xl relative">
+            <h3 className="text-lg font-bold text-center mb-4 dark:text-white">Aponte para o QR Code</h3>
+            <div id="zapi-qr-reader" className="w-full rounded-lg overflow-hidden"></div>
+            <button 
+              onClick={() => setShowScanner(false)}
+              className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-zinc-700 rounded-full text-gray-500 hover:text-gray-800"
+            >
+              <X size={20} />
+            </button>
+            <p className="text-xs text-center text-gray-500 mt-4">
+              No painel da sua API de WhatsApp, gere um QR Code com as credenciais (instanceId e token) para configurar automaticamente.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Reconexão */}
+      {showReconnectModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-800 w-full max-w-sm rounded-2xl p-6 shadow-xl relative">
+            <h3 className="text-lg font-bold text-center mb-4 dark:text-white">Reconectar WhatsApp</h3>
+            <button onClick={() => setShowReconnectModal(false)} className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-zinc-700 rounded-full text-gray-500 hover:text-gray-800"><X size={20} /></button>
+            <div className="flex flex-col items-center justify-center min-h-[250px]">
+              {reconnectQrCode ? (
+                <img src={reconnectQrCode} alt="QR Code de Reconexão" className="w-56 h-56 rounded-lg border border-gray-200" />
+              ) : (
+                <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+              )}
+              <p className="text-sm text-center text-gray-500 mt-4">
+                Abra seu WhatsApp, vá em "Aparelhos Conectados" e escaneie o código acima.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Seção de Cores e Tema */}
@@ -344,24 +459,85 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
           </div>
         </div>
 
-        {/* Seção de Pagamento (PIX) */}
+        {/* Seção de Integrações */}
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <QrCode size={20} className="text-emerald-500" />
-            Recebimento via PIX
-          </h3>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Chave PIX da Loja</label>
-            <input 
-              type="text" 
-              value={pixKey} 
-              onChange={e => setPixKey(e.target.value)} 
-              placeholder="CPF, CNPJ, Email, Celular ou Chave Aleatória" 
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 outline-none dark:text-white"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Esta chave será usada para gerar o QR Code automaticamente na tela de vendas (PDV).
-            </p>
+          <div className="space-y-8">
+            {/* Sub-seção PIX */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                <QrCode size={20} className="text-emerald-500" />
+                Recebimento via PIX
+              </h3>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Chave PIX da Loja</label>
+                <input
+                  type="text"
+                  value={pixKey}
+                  onChange={e => setPixKey(e.target.value)}
+                  placeholder="CPF, CNPJ, Email, Celular ou Chave Aleatória"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 outline-none dark:text-white"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Esta chave será usada para gerar o QR Code automaticamente na tela de vendas (PDV).
+                </p>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-zinc-800"></div>
+
+            {/* Sub-seção WhatsApp */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Integração WhatsApp</h3>
+              {user && (user as any).zapi_instance && (user as any).zapi_token ? (
+                // Estado: Configurado
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl border border-emerald-200 dark:border-emerald-500/20 flex flex-col items-center text-center gap-3">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                    <Wifi size={20} />
+                    <p className="font-bold">WhatsApp Conectado</p>
+                  </div>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">O sistema está pronto para enviar recibos.</p>
+                  <button 
+                    onClick={handleReconnect}
+                    className="mt-2 text-xs font-bold text-blue-600 hover:underline"
+                  >
+                    Precisa reconectar? Clique aqui.
+                  </button>
+                </div>
+              ) : (
+                // Estado: Não Configurado
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Para habilitar o envio de recibos, insira as credenciais da sua API de WhatsApp (ex: Z-API) abaixo.
+                  </p>
+                  <div>
+                    <label htmlFor="zapi_instance" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Instance ID
+                    </label>
+                    <input
+                      type="text"
+                      id="zapi_instance"
+                      value={zapiInstance}
+                      onChange={(e) => setZapiInstance(e.target.value)}
+                      className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-gray-50 dark:bg-zinc-700"
+                      placeholder="Sua Instance ID"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="zapi_token" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Token
+                    </label>
+                    <input
+                      type="password"
+                      id="zapi_token"
+                      value={zapiToken}
+                      onChange={(e) => setZapiToken(e.target.value)}
+                      className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-gray-50 dark:bg-zinc-700"
+                      placeholder="Seu Token"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -427,7 +603,7 @@ export function StoreSettings({ user, onUpdateUser, setDarkMode }: StoreSettings
       </div>
 
       <div className="flex justify-end">
-        <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg shadow-blue-600/20">
+        <button onClick={handleSave} disabled={isSaving} className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg shadow-blue-600/20">
           {isSaving ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
           Salvar Alterações
         </button>

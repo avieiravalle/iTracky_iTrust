@@ -29,6 +29,7 @@ import { POS } from './components/POS';
 import { PixPaymentModal } from './components/PixPaymentModal';
 import { TeamManagement } from './components/TeamManagement';
 import { StoreSettings } from './components/StoreSettings';
+import { Clients } from './components/Clients';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -52,7 +53,7 @@ export default function App() {
     start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings' | 'clients'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -581,6 +582,7 @@ export default function App() {
                  activeTab === 'pdv' ? 'PDV' :
                  activeTab === 'team' ? 'Equipe' :
                  activeTab === 'settings' ? 'Configurações da Loja' :
+                 activeTab === 'clients' ? 'Clientes' :
                  'Configurações'}
               </h2>
             </div>
@@ -665,6 +667,7 @@ export default function App() {
             )}
             {activeTab === 'team' && <TeamManagement user={user} />}
             {activeTab === 'settings' && <StoreSettings user={user} onUpdateUser={fetchData} setDarkMode={setDarkMode} />}
+            {activeTab === 'clients' && <Clients token={token!} />}
             {activeTab === 'admin' && <AdminDashboard />}
           </motion.div>
         </AnimatePresence>

@@ -17,7 +17,10 @@ import {
   Users,
   Settings,
   ShieldCheck,
-  Printer
+  Printer,
+  MessageSquare,
+  Contact,
+  Store
 } from 'lucide-react';
 
 export const Manual: React.FC = () => {
@@ -41,6 +44,20 @@ export const Manual: React.FC = () => {
       title: 'Scanner e Leitor de Código',
       icon: <ScanBarcode className="text-purple-500" size={24} />,
       content: 'Agilize suas entradas e saídas usando o leitor. Você pode usar a câmera do seu celular/computador clicando no ícone de câmera, ou usar um leitor USB externo. Ao escanear um produto já cadastrado, ele é selecionado automaticamente. Se for um novo código na entrada, o sistema sugere o cadastro imediato.'
+    },
+    {
+      title: 'Frente de Caixa (PDV)',
+      icon: <Store className="text-purple-500" size={24} />,
+      content: (
+        <div className="space-y-2">
+          <p>A tela de Ponto de Venda é otimizada para agilidade. Adicione produtos via scanner ou busca, e ao finalizar a venda, você pode:</p>
+          <ul className="list-disc list-inside space-y-1 text-xs pl-2">
+            <li><strong>Enviar Recibo via WhatsApp:</strong> Insira o nome e o número do cliente para enviar um comprovante digital instantaneamente. O cliente é cadastrado automaticamente no sistema.</li>
+            <li><strong>Registrar Vendas "A Receber":</strong> Marque a venda como pendente para controle no módulo Financeiro.</li>
+            <li><strong>Aplicar Descontos:</strong> Adicione descontos percentuais ao total da compra.</li>
+          </ul>
+        </div>
+      )
     },
     {
       title: 'Informativo de Lucros',
@@ -105,9 +122,30 @@ export const Manual: React.FC = () => {
       content: 'Controle total sobre quem acessa sua loja. Visualize seus colaboradores, bloqueie acessos temporariamente ou remova usuários. Acompanhe também o Log de Auditoria para saber exatamente quem fez o quê no sistema (ex: quem excluiu um produto ou alterou um preço).'
     },
     {
+      title: 'Clientes',
+      icon: <Contact className="text-cyan-600" size={24} />,
+      content: 'O sistema cria automaticamente uma lista de clientes com base nos nomes que você informa nas vendas. Nesta tela, você pode visualizar todos os seus clientes, o valor total que cada um já gastou e a data da última compra, ajudando a identificar seus clientes mais valiosos e a reativar os inativos.'
+    },
+    {
       title: 'Identidade Visual',
       icon: <Settings className="text-gray-600" size={24} />,
       content: 'Deixe o sistema com a cara da sua empresa. No menu Configurações, você pode alterar as cores do sistema, escolher entre modo claro/escuro e fazer upload do seu logotipo, que aparecerá no topo do menu e nos relatórios.'
+    },
+    {
+      title: 'Integração com WhatsApp',
+      icon: <MessageSquare className="text-green-500" size={24} />,
+      content: (
+        <div className="space-y-2">
+          <p>Para enviar recibos, você precisa de um serviço que faz a "ponte" entre o iTrust e seu WhatsApp. Siga os passos:</p>
+          <ol className="list-decimal list-inside space-y-1 text-xs pl-2">
+            <li>Crie uma conta em um provedor de API, como a <strong>Z-API</strong>.</li>
+            <li>No painel deles, crie uma "instância" e escaneie o QR Code com o WhatsApp do seu celular.</li>
+            <li>O painel da Z-API fornecerá um <strong>"Instance ID"</strong> e um <strong>"Token"</strong>.</li>
+            <li>Volte ao iTrust, vá em <strong>Configurações</strong>, e insira essas duas informações nos campos de "Integração WhatsApp". Salve as alterações.</li>
+            <li>Pronto! Se sua conexão cair, basta clicar em "Reconectar" para gerar um novo QR Code de leitura.</li>
+          </ol>
+        </div>
+      )
     },
     {
       title: 'Segurança',

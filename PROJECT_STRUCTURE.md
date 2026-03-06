@@ -30,6 +30,7 @@ Estoque/
 │   │   ├── AccessControlPanel.tsx  # Tabela de gestão de colaboradores
 │   │   ├── AdminDashboard.tsx      # Painel Master (Super Admin)
 │   │   ├── AuditLogViewer.tsx      # Visualizador de logs de auditoria
+│   │   ├── Clients.tsx             # Tela de visualização de clientes
 │   │   ├── Auth.tsx                # Telas de Login e Registro
 │   │   ├── Dashboard.tsx           # Tela inicial com KPIs e Gráficos
 │   │   ├── Financeiro.tsx          # Contas a receber e fluxo de caixa

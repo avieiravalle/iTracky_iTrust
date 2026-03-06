@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText, Users, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Package, ArrowUpCircle, ArrowDownCircle, Plus, TrendingUp, DollarSign, BookOpen, Sun, Moon, ShieldCheck, X, ArrowRight, Download, Share, Store, ArrowLeftRight, FileText, Users, Settings, ChevronLeft, ChevronRight, Contact } from 'lucide-react';
 import { User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SidebarProps {
   user: User | null;
   activeTab: string;
-  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings') => void;
+  setActiveTab: (tab: 'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings' | 'clients') => void;
   onLogout: () => void;
   onShowTransaction: (type: 'ENTRY' | 'EXIT') => void;
   onShowAddProduct: () => void;
@@ -172,6 +172,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Users size={20} />
                 {!isCollapsed && <span className="font-medium">Gestão de Equipe</span>}
+              </button>
+            )}
+            {user?.role === 'gestor' && appMode === 'full' && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab('clients')}
+                className={`w-full flex items-center gap-3 py-3 rounded-xl transition-all font-medium ${isCollapsed ? 'justify-center px-2' : 'px-4'} ${activeTab === 'clients' ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
+                style={activeTab === 'clients' ? { backgroundColor: 'rgba(255,255,255,0.1)', color: 'var(--color-accent, #00D4FF)' } : {}}
+              >
+                <Contact size={20} />
+                {!isCollapsed && <span className="font-medium">Clientes</span>}
               </button>
             )}
             {user?.role === 'gestor' && appMode === 'full' && (
