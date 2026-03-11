@@ -17,7 +17,8 @@ import {
   FileText, 
   Image as ImageIcon, // Renomeado para evitar conflito
   Store,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
