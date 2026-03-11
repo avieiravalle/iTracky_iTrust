@@ -431,7 +431,7 @@ export const Auth: React.FC<AuthProps> = ({
 
   // Se a tela for de registro, e o passo for 'plans', mostre a seleção de planos.
   if (screen === 'register' && registrationStep === 'plans') {
-    return <PlanSelection onPlanSelect={handlePlanSelect} />;
+    return <PlanSelection onPlanSelect={handlePlanSelect} onGoBack={() => setRegistrationStep('form')} />;
   }
 
   // Se a tela for de registro, e o passo for 'payment', mostre o modal de pagamento.

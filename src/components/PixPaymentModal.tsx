@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, MessageCircle, Clock, ArrowLeft } from 'lucide-react';
+import { X, Copy, MessageCircle, Clock, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface PixPaymentModalProps {
@@ -61,14 +61,41 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({
   planPrice
 }) => {
   const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutos em segundos
+  const [pixInfo, setPixInfo] = useState<{ key: string; receiver: string; payload: string; qrUrl: string; } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    // Fetch PIX info from backend
+    const fetchPixInfo = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/payment-info');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Falha ao carregar dados de pagamento.');
+        
+        const amount = planPrice.replace(/[^0-9,]/g, '').replace(',', '.');
+        const payload = generatePixPayload(data.pix_key, data.pix_receiver, "Brasil", amount);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payload)}`;
+        
+        setPixInfo({ key: data.pix_key, receiver: data.pix_receiver, payload, qrUrl });
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPixInfo();
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [isOpen]);
+  }, [isOpen, planPrice]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -76,15 +103,11 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const pixKey = "29556537805";
-  // Extrai o valor numérico do preço (ex: "R$ 89,90" -> "89.90")
-  const amount = planPrice.replace(/[^0-9,]/g, '').replace(',', '.');
   const whatsappNumber = "5511930051475";
-  const pixPayload = generatePixPayload(pixKey, "Estoque App", "Sao Paulo", amount);
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`;
   const message = encodeURIComponent(`Olá, realizei o cadastro com o email ${email} e fiz o pagamento de ${planPrice} via PIX para o plano ${planName}. Segue o comprovante para liberação do acesso.`);
 
   const handleCopy = () => {
+    const pixKey = pixInfo?.key || '';
     navigator.clipboard.writeText(pixKey);
     alert("Chave PIX copiada!");
   };
@@ -113,10 +136,22 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({
         </div>
 
         <div className="flex justify-center mb-6">
-          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-            <img src={qrCodeUrl} alt="QR Code PIX" className="w-40 h-40 object-contain" />
-            <p className="text-[10px] text-center text-gray-400 mt-1">Escaneie com seu app do banco</p>
-          </div>
+          {isLoading ? (
+            <div className="w-48 h-48 flex flex-col items-center justify-center bg-gray-50 rounded-xl">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              <p className="text-xs text-gray-400 mt-2">Gerando QR Code...</p>
+            </div>
+          ) : error ? (
+            <div className="w-48 h-48 flex flex-col items-center justify-center bg-rose-50 text-rose-600 rounded-xl p-4 text-center">
+              <AlertCircle className="w-8 h-8 mb-2" />
+              <p className="text-xs font-bold">{error}</p>
+            </div>
+          ) : (
+            <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+              <img src={pixInfo?.qrUrl} alt="QR Code PIX" className="w-40 h-40 object-contain" />
+              <p className="text-[10px] text-center text-gray-400 mt-1">Escaneie com seu app do banco</p>
+            </div>
+          )}
         </div>
 
         <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-100">
@@ -127,8 +162,8 @@ export const PixPaymentModal: React.FC<PixPaymentModalProps> = ({
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase">Chave PIX (CPF/Celular)</label>
             <div className="flex items-center gap-2 bg-white border border-gray-200 p-3 rounded-lg">
-              <span className="font-mono text-gray-800 flex-1 text-lg">{pixKey}</span>
-              <button type="button" onClick={handleCopy} className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Copiar">
+              <span className="font-mono text-gray-800 flex-1 text-lg">{pixInfo?.key || '...'}</span>
+              <button type="button" onClick={handleCopy} disabled={!pixInfo} className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50" title="Copiar">
                 <Copy size={20} />
               </button>
             </div>

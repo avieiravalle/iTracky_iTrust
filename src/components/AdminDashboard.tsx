@@ -15,8 +15,9 @@ import {
   Eye,
   EyeOff,
   FileText, 
-  Image,
-  Store
+  Image as ImageIcon, // Renomeado para evitar conflito
+  Store,
+  Save
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -46,6 +47,8 @@ export const AdminDashboard: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [systemPixKey, setSystemPixKey] = useState('');
+  const [isSavingPix, setIsSavingPix] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending'>('all');
   const [logSearchTerm, setLogSearchTerm] = useState('');
   
@@ -66,6 +69,11 @@ export const AdminDashboard: React.FC = () => {
       if (clientsRes.ok) {
         const data = await clientsRes.json();
         setClients(data);
+        // Encontra o admin e preenche a chave PIX do sistema
+        const admin = data.find((c: any) => c.role === 'admin');
+        if (admin && admin.pix_key) {
+          setSystemPixKey(admin.pix_key);
+        }
       }
 
       if (salesRes.ok) {
@@ -95,12 +103,51 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [isAuthorized]);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminCredentials.email === 'avieiravale@gmail.com' && adminCredentials.password === 'Anderson@46') {
-      setIsAuthorized(true);
-    } else {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adminCredentials)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user.role === 'admin') {
+          localStorage.setItem('authToken', data.token);
+          setIsAuthorized(true);
+          return;
+        }
+      }
       alert('Credenciais de administrador inválidas.');
+    } catch (error) {
+      alert('Erro ao realizar login.');
+    }
+  };
+
+  const handleSaveSystemPix = async () => {
+    setIsSavingPix(true);
+    try {
+      // O token de login do admin já está sendo usado pelo `authFetch` implícito
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}` // Assumindo que o token está aqui
+        },
+        body: JSON.stringify({ pix_key: systemPixKey })
+      });
+      if (res.ok) {
+        alert('Chave PIX do sistema salva com sucesso!');
+        fetchData(); // Recarrega os dados para garantir consistência
+      } else {
+        throw new Error('Falha ao salvar a chave PIX.');
+      }
+    } catch (error) {
+      alert((error as Error).message);
+    } finally {
+      setIsSavingPix(false);
     }
   };
 
@@ -405,7 +452,7 @@ export const AdminDashboard: React.FC = () => {
                         className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl cursor-pointer"
                         title="Alterar Logo"
                     >
-                        <Image size={28} />
+                        <ImageIcon size={28} />
                     </button>
                 </div>
                 <div>
@@ -414,6 +461,28 @@ export const AdminDashboard: React.FC = () => {
                         Este é o logo principal do sistema, exibido na tela de login para todos os usuários antes de se identificarem.
                     </p>
                 </div>
+            </div>
+            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-zinc-800">
+              <h4 className="font-bold text-base dark:text-white mb-2 flex items-center gap-2">
+                <DollarSign size={18} className="text-emerald-500" />
+                Chave PIX para Recebimento dos Planos
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Esta chave PIX será usada para gerar os QR Codes de pagamento na tela de cadastro de novos gestores.
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={systemPixKey}
+                  onChange={(e) => setSystemPixKey(e.target.value)}
+                  placeholder="CPF, CNPJ, Email ou Chave Aleatória"
+                  className="flex-1 px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-white"
+                />
+                <button onClick={handleSaveSystemPix} disabled={isSavingPix} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50">
+                  {isSavingPix ? <Loader2 className="animate-spin w-5 h-5" /> : <Save size={18} />}
+                  Salvar
+                </button>
+              </div>
             </div>
         </div>
       )}

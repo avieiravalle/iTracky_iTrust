@@ -23,6 +23,7 @@ interface DashboardProps {
   setCustomDateRange: (range: { start: string; end: string }) => void;
   darkMode: boolean;
   onViewFinanceiro: () => void;
+  expiringProducts: Product[];
   user: User | null;
 }
 
@@ -36,6 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   setCustomDateRange,
   darkMode,
   onViewFinanceiro,
+  expiringProducts,
   user
 }) => {
   const isColaborador = user?.role === 'colaborador';
@@ -153,6 +155,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Alerta de Produtos Próximos ao Vencimento */}
+      {expiringProducts.length > 0 && (
+        <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20 rounded-2xl p-6 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-orange-800 dark:text-orange-400">
+            <Calendar size={20} />
+            <h3 className="font-bold">Produtos Próximos do Vencimento (90 dias)</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {expiringProducts.map(p => {
+              if (!p.expiry_date) return null;
+              const expiryDate = new Date(p.expiry_date + 'T00:00:00'); // Consider date only
+              const today = new Date();
+              today.setHours(0, 0, 0, 0); // Normalize today's date
+              const diffTime = expiryDate.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              let colorClass = 'text-green-600 dark:text-green-400';
+              if (diffDays <= 30) {
+                colorClass = 'text-orange-600 dark:text-orange-400';
+              }
+              if (diffDays <= 7) {
+                colorClass = 'text-rose-600 dark:text-rose-400';
+              }
+
+              return (
+                <div key={p.id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-orange-200 dark:border-orange-500/30 flex justify-between items-center transition-colors">
+                  <div>
+                    <p className="font-bold text-sm dark:text-white">{p.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Estoque: {p.current_stock}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-bold text-sm ${colorClass}`}>{diffDays} dias</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Vence: {expiryDate.toLocaleDateString('pt-BR')}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Gráfico de Evolução Mensal */}
       {!isColaborador && (

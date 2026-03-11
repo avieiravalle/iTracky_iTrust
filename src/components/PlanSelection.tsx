@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Star, Users, Building } from 'lucide-react';
+import { Check, Star, Users, Building, ArrowLeft } from 'lucide-react';
 
 export interface Plan {
   name: string;
@@ -14,7 +14,7 @@ export interface Plan {
 const plans: Plan[] = [
   {
     name: 'Básico',
-    price: 'R$ 89,90',
+    price: 'R$ 99,90',
     icon: <Users size={28} />,
     bgColor: 'bg-gray-100 dark:bg-gray-800',
     textColor: 'text-gray-800 dark:text-gray-200',
@@ -27,7 +27,7 @@ const plans: Plan[] = [
   },
   {
     name: 'Profissional',
-    price: 'R$ 189,90',
+    price: 'R$ 249,90',
     icon: <Star size={28} />,
     bgColor: 'bg-blue-600',
     textColor: 'text-white',
@@ -41,7 +41,7 @@ const plans: Plan[] = [
   },
   {
     name: 'Empresarial',
-    price: 'R$ 299,90',
+    price: 'A partir deR$ 299,90',
     icon: <Building size={28} />,
     bgColor: 'bg-gray-100 dark:bg-gray-800',
     textColor: 'text-gray-800 dark:text-gray-200',
@@ -56,11 +56,19 @@ const plans: Plan[] = [
 
 interface PlanSelectionProps {
   onPlanSelect: (plan: Plan) => void;
+  onGoBack: () => void;
 }
 
-export const PlanSelection: React.FC<PlanSelectionProps> = ({ onPlanSelect }) => {
+export const PlanSelection: React.FC<PlanSelectionProps> = ({ onPlanSelect, onGoBack }) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-[#0f172a] p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-[#0f172a] p-4 relative">
+      <button
+        onClick={onGoBack}
+        className="absolute top-6 left-6 flex items-center gap-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors font-bold"
+      >
+        <ArrowLeft size={20} />
+        Voltar
+      </button>
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-800 dark:text-white">Escolha o plano ideal para você</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-2">Comece pequeno ou cresça sem limites. Temos a solução certa.</p>

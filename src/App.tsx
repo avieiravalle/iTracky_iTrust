@@ -29,6 +29,7 @@ import { POS } from './components/POS';
 import { PixPaymentModal } from './components/PixPaymentModal';
 import { TeamManagement } from './components/TeamManagement';
 import { StoreSettings } from './components/StoreSettings';
+import { ClientManagement } from './components/ClientManagement';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -48,11 +49,12 @@ export default function App() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
   const [receivables, setReceivables] = useState<Receivable[]>([]);
   const [evolutionPeriod, setEvolutionPeriod] = useState<'day' | 'week' | 'month' | 'quarter' | 'custom'>('month');
+  const [expiringProducts, setExpiringProducts] = useState<Product[]>([]);
   const [customDateRange, setCustomDateRange] = useState({ 
     start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'transactions' | 'informativo' | 'financeiro' | 'manual' | 'admin' | 'pdv' | 'team' | 'settings' | 'clients'>('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showTransaction, setShowTransaction] = useState<{ type: 'ENTRY' | 'EXIT', productId?: number } | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -159,13 +161,14 @@ export default function App() {
         evolutionUrl += `&range=${rangeMap[evolutionPeriod]}`;
       }
 
-      const [productsRes, statsRes, productStatsRes, monthlyStatsRes, receivablesRes, userRes] = await Promise.allSettled([
+      const [productsRes, statsRes, productStatsRes, monthlyStatsRes, receivablesRes, userRes, expiringProductsRes] = await Promise.allSettled([
         authFetch(`/api/products`), // Não precisa mais enviar userId na URL
         authFetch(`/api/stats`),
         authFetch(`/api/product-stats`),
         authFetch(evolutionUrl),
         authFetch(`/api/receivables`),
-        authFetch(`/api/me`) // Garante que buscamos as configurações novas
+        authFetch(`/api/me`), // Garante que buscamos as configurações novas
+        authFetch(`/api/products/expiring`)
       ]);
 
       if (productsRes.status === 'fulfilled' && productsRes.value.ok) {
@@ -191,6 +194,11 @@ export default function App() {
       if (receivablesRes.status === 'fulfilled' && receivablesRes.value.ok) {
         const receivablesData = await receivablesRes.value.json();
         setReceivables(receivablesData);
+      }
+
+      if (expiringProductsRes.status === 'fulfilled' && expiringProductsRes.value.ok) {
+        const expiringData = await expiringProductsRes.value.json();
+        setExpiringProducts(expiringData);
       }
 
       if (userRes.status === 'fulfilled' && userRes.value.ok) {
@@ -581,6 +589,7 @@ export default function App() {
                  activeTab === 'pdv' ? 'PDV' :
                  activeTab === 'team' ? 'Equipe' :
                  activeTab === 'settings' ? 'Configurações da Loja' :
+                 activeTab === 'clients' ? 'Clientes' :
                  'Configurações'}
               </h2>
             </div>
@@ -633,6 +642,7 @@ export default function App() {
                 setCustomDateRange={setCustomDateRange}
                 darkMode={darkMode}
                 onViewFinanceiro={() => setActiveTab('financeiro')}
+                expiringProducts={expiringProducts}
                 user={user}
               />
             )}
@@ -665,6 +675,7 @@ export default function App() {
             )}
             {activeTab === 'team' && <TeamManagement user={user} />}
             {activeTab === 'settings' && <StoreSettings user={user} onUpdateUser={fetchData} setDarkMode={setDarkMode} />}
+            {activeTab === 'clients' && <ClientManagement token={token!} />}
             {activeTab === 'admin' && <AdminDashboard />}
           </motion.div>
         </AnimatePresence>
